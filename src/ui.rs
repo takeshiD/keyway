@@ -1,60 +1,70 @@
-use crate::hid;
-use glib::clone;
-use gtk::prelude::*;
-use gtk::{glib, Application, ApplicationWindow};
-use gtk::{Window, Button, Label, Box, Align};
-use std::thread;
-use std::time::Duration;
-use async_channel::Receiver;
+use iced::{
+    event::{self, Status},
+    executor,
+    widget::text,
+    Application, Event, Settings,
+};
+use std::time::{Duration, SystemTime};
 
-pub fn build_ui(app: &Application, rx: Receiver<hid::Key>) {
-    let label = Label::new(Some(""));
-    let mainwin_box = Box::builder()
-        .margin_end(12)
-        .margin_top(12)
-        .margin_start(12)
-        .margin_bottom(12)
-        .halign(Align::Center)
-        .build();
-    let keywin_box = Box::builder()
-        .margin_top(12)
-        .margin_end(12)
-        .margin_start(12)
-        .margin_bottom(12)
-        .halign(Align::Center)
-        .build();
-    keywin_box.append(&label);
-    glib::spawn_future_local(clone!(
-        #[weak]
-        label,
-        async move {
-            while let Ok(key) = rx.recv().await {
-                // println!("Async receive key: {} {}", key.value, key.raw);
-                label.set_text(format!("{}", key.value).as_str());
-            } 
+#[derive(Debug, Clone)]
+enum Message {
+    KeyPressed,
+    NoPressed,
+}
+
+pub struct Keyway {
+    pressed_key: String,
+}
+
+impl Application for Keyway {
+    type Executor = executor::Default;
+    type Message = Message;
+    type Theme = iced::Theme;
+    type Flags = ();
+
+    fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        (
+            Self {
+                pressed_key: "".into(),
+            },
+            iced::Command::none(),
+        )
+    }
+
+    fn title(&self) -> String {
+        String::from("Keyway")
+    }
+
+    fn update(&mut self, message: Self::Message) -> iced::Command<Self::Message> {
+        match message {
+            MyAppMessage::KeyPressed(s) => self.pressed_key = s,
+            MyAppMessage::NoPressed => self.pressed_key = String::from("timeout"),
         }
-    ));
-    let main_win = ApplicationWindow::builder()
-        .application(app)
-        .title("keyway")
-        .child(&mainwin_box)
-        .build();
-    let keywin = Window::builder()
-        .child(&keywin_box)
-        .title("display key")
-        .transient_for(&main_win)
-        .destroy_with_parent(true)
-        .build();
-    let wakeup_button = Button::builder()
-        .label("Start")
-        .build();
-    wakeup_button.connect_clicked(move |_button| {
-        let keywin = keywin.clone();
-        if !keywin.activate() {
-            keywin.present();
-        }
-    });
-    mainwin_box.append(&wakeup_button);
-    main_win.present();
-    // keywin.present();
+        iced::Command::none()
+    }
+
+    fn view(&self) -> iced::Element<Self::Message> {
+        text(self.pressed_key.as_str()).into()
+    }
+
+    fn subscription(&self) -> iced::Subscription<Self::Message> {
+        println!("Subs: {:?}", SystemTime::now());
+        event::listen_with(|event, status| match (event, status) {
+            (
+                Event::Keyboard(KeyPressed {
+                    key: Key::Named(Named::Enter),
+                    ..
+                }),
+                Status::Ignored,
+            ) => Some(MyAppMessage::KeyPressed("Enter".into())),
+            (
+                Event::Keyboard(KeyPressed {
+                    key: Key::Named(Named::Space),
+                    ..
+                }),
+                Status::Ignored,
+            ) => Some(MyAppMessage::KeyPressed("Space".into())),
+            _ => Some(MyAppMessage::NoPressed),
+        })
+    }
 }
