@@ -25,7 +25,7 @@ fn get_allkeyabords() -> Vec<(PathBuf, Device)> {
 }
 
 
-pub fn run() {
+pub async fn run_sender() {
     let mut devices = get_allkeyabords();
     let mut tokens = vec![];
     for i in 0..devices.len() {
@@ -41,10 +41,10 @@ pub fn run() {
     println!("Receive wait: {:?}", target);
     let mut events = Events::with_capacity(32);
     let mut buf = Vec::<Keystroke>::with_capacity(100);
-    let timeout = Duration::from_millis(5000);
+    let timeout = Duration::from_millis(500);
     let mut timestamp = Instant::now();
     loop {
-        poll.poll(&mut events, Some(Duration::from_millis(10))).unwrap();
+        poll.poll(&mut events, Some(Duration::from_millis(50))).unwrap();
         for event in events.iter() {
             match event.token() {
                 Token(i) if (0..devices.len()).contains(&i) => {
