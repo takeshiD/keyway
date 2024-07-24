@@ -1,5 +1,8 @@
-mod keyserver;
-mod ui;
+mod keyway;
+mod keysender;
+mod keyreceiver;
+
+use keyway::Keyway;
 
 use clap::Parser;
 use std::path::PathBuf;
@@ -12,5 +15,5 @@ struct ArgumentParser {
 }
 
 fn main() {
-    ui::Keyway::run(Settings::default());
+    Keyway::run(Settings::default());
 }

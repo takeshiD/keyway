@@ -5,6 +5,9 @@ use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use evdev::Device;
 use serde::{Serialize, Deserialize};
+use iced::subscription::{self, Subscription};
+
+use crate::keyway::Keystroke;
 
 fn is_keyboard(dev: &Device) -> bool {
     let has_key = dev.supported_events().contains(evdev::EventType::KEY);
@@ -21,10 +24,6 @@ fn get_allkeyabords() -> Vec<(PathBuf, Device)> {
     devices
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct Key {
-    scancode: u32,
-}
 
 pub fn run() {
     let mut devices = get_allkeyabords();
@@ -41,7 +40,7 @@ pub fn run() {
     udp_sender.connect(target).unwrap();
     println!("Receive wait: {:?}", target);
     let mut events = Events::with_capacity(32);
-    let mut buf = Vec::<Key>::with_capacity(100);
+    let mut buf = Vec::<Keystroke>::with_capacity(100);
     let timeout = Duration::from_millis(5000);
     let mut timestamp = Instant::now();
     loop {
@@ -54,10 +53,8 @@ pub fn run() {
                         match e.kind() {
                             evdev::InputEventKind::Key(keyevent) => {
                                 timestamp = Instant::now();
-                                let key = Key {
-                                    scancode: keyevent.code() as u32
-                                };
-                                buf.push(key.clone());
+                                let keystroke = Keystroke::new(keyevent.code());
+                                buf.push(keystroke);
                             }
                             _ => (),
                             
@@ -69,7 +66,7 @@ pub fn run() {
                 }
             }
         }
-        if !buf.is_empty()  &&  (Instant::now() - timestamp > timeout) {
+        if !buf.is_empty() && (Instant::now() - timestamp > timeout) {
             buf.clear();
         }
         match udp_sender.send(serde_json::to_string(&buf).unwrap().as_bytes()) {
