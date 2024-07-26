@@ -7,6 +7,8 @@ use mio::{unix::SourceFd, Events, Interest, Poll, Token};
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
+use std::sync::{Arc, Mutex};
+
 use xkbcommon::xkb;
 
 use crate::keyway::{Keystroke, Keyway};
@@ -68,7 +70,7 @@ impl Keyboard {
     }
 }
 
-pub async fn run_sender() {
+pub async fn run_sender(timeout: Arc<Mutex<u16>>) {
     let mut devices = get_allkeyabords();
     let mut tokens = vec![];
     let mut keyboards = Vec::<Keyboard>::new();
@@ -89,9 +91,10 @@ pub async fn run_sender() {
     udp_sender.connect(target).unwrap();
     let mut events = Events::with_capacity(32);
     let mut buf = Vec::<Keystroke>::new();
-    let timeout = Duration::from_millis(500);
+    // let timeout = Duration::from_millis(500);
     let mut timestamp = Instant::now();
     loop {
+        let timeout = Duration::from_millis(*timeout.lock().unwrap() as u64);
         poll.poll(&mut events, Some(Duration::from_millis(50)))
             .unwrap();
         for event in events.iter() {

@@ -1,11 +1,12 @@
 use iced::executor;
 use iced::multi_window::{self, Application};
-use iced::widget::{column, container, slider, text};
+use iced::widget::{row, column, container, slider, text};
 use iced::window;
 use iced::{Color, Command, Element, Length, Subscription, Theme};
 use serde::{Deserialize, Serialize};
 
 use std::fmt;
+use std::sync::{Arc, Mutex};
 
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
 use crate::keysender::{run_sender, SenderEvent};
@@ -17,12 +18,6 @@ impl Window {
     fn new(title: String) -> Self {
         Self { title }
     }
-}
-pub struct Keyway {
-    keys: Vec<Keystroke>,
-    config_window: (window::Id, Window),
-    key_window: (window::Id, Window),
-    timeout: u16,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +45,13 @@ pub enum Message {
     SliderChanged(u16),
 }
 
+pub struct Keyway {
+    keys: Vec<Keystroke>,
+    config_window: (window::Id, Window),
+    key_window: (window::Id, Window),
+    timeout: Arc<Mutex<u16>>,
+}
+
 impl Application for Keyway {
     type Executor = executor::Default;
     type Message = Message;
@@ -60,14 +62,15 @@ impl Application for Keyway {
         let (winid, spawn_win) = window::spawn::<Message>(window::Settings{
             ..Default::default()
         });
-        let serve = Command::perform(run_sender(), |_| Message::StartSender);
+        let timeout = Arc::new(Mutex::new(500));
+        let serve = Command::perform(run_sender(Arc::clone(&timeout)), |_| Message::StartSender);
         let cmd = Command::batch(vec![spawn_win, serve]);
         (
             Self {
                 keys: vec![],
                 config_window: (window::Id::MAIN, Window::new(String::from("Configure"))),
                 key_window: (winid, Window::new(String::from("Keystroke"))),
-                timeout: 500,
+                timeout,
             },
             cmd
             // Command::perform(run_sender(), |_| Message::StartSender),
@@ -99,7 +102,8 @@ impl Application for Keyway {
                 println!("[INFO] Starting Sender");
             }
             Message::SliderChanged(slider_value) => {
-                self.timeout = slider_value;
+                let mut to = self.timeout.lock().unwrap();
+                *to = slider_value;
             }
         }
         Command::none()
@@ -108,9 +112,11 @@ impl Application for Keyway {
     fn view(&self, winid: window::Id) -> Element<Self::Message> {
         let content: Element<_> = match winid {
             window::Id::MAIN => {
-                column![
-                    text("Configure!"),
-                    slider(100..=1000, self.timeout, Message::SliderChanged)
+                let to = *self.timeout.lock().unwrap();
+                row![
+                    text("Timeout"),
+                    slider(100..=1000, to, Message::SliderChanged),
+                    text(format!("{to} ms")),
                 ].into()
             },
             _ => {
