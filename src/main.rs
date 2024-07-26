@@ -6,7 +6,8 @@ use keyway::Keyway;
 
 use clap::Parser;
 use std::path::PathBuf;
-use iced::{Application, Settings};
+use iced::Settings;
+use iced::multi_window::Application;
 
 #[derive(Parser)]
 struct ArgumentParser {
@@ -14,6 +15,6 @@ struct ArgumentParser {
     config: Option<PathBuf>
 }
 
-fn main() {
-    Keyway::run(Settings::default());
+fn main() -> iced::Result {
+    Keyway::run(Settings::default())
 }
