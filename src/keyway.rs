@@ -1,15 +1,18 @@
 use iced::executor;
-use iced::multi_window::{self, Application};
-use iced::widget::{row, column, container, slider, text};
+use iced::event;
+use iced::multi_window::Application;
+use iced::widget::{
+    row, column, container, slider, text, horizontal_space, vertical_space, toggler,
+};
 use iced::window;
-use iced::{Color, Command, Element, Length, Subscription, Theme};
+use iced::{Color, Command, Element, Length, Theme, Subscription};
 use serde::{Deserialize, Serialize};
 
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
-use crate::keysender::{run_sender, SenderEvent};
+use crate::keysender::run_sender;
 
 struct Window {
     title: String,
@@ -39,17 +42,20 @@ impl fmt::Display for Keystroke {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    StartSender,
+    Sender,
     KeyReceived(ReceiverEvent),
-    KeySent(SenderEvent),
-    SliderChanged(u16),
+    TimeoutChanged(u16),
+    KeyWinVisibleChanged(bool),
+    ClosedWindow,
 }
 
 pub struct Keyway {
     keys: Vec<Keystroke>,
-    config_window: (window::Id, Window),
+    config_window: (window::Id, ConfigWindow),
     key_window: (window::Id, Window),
     timeout: Arc<Mutex<u16>>,
+    keywin_visible: bool,
+    is_shutdown: Arc<Mutex<bool>>,
 }
 
 impl Application for Keyway {
@@ -59,21 +65,27 @@ impl Application for Keyway {
     type Flags = ();
 
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
+        let timeout = Arc::new(Mutex::new(500));
+        let is_shutdown = Arc::new(Mutex::new(false));
         let (winid, spawn_win) = window::spawn::<Message>(window::Settings{
+            size: iced::Size::new(300.0, 100.0),
+            visible: true,
+            resizable: false,
+            decorations: false,
             ..Default::default()
         });
-        let timeout = Arc::new(Mutex::new(500));
-        let serve = Command::perform(run_sender(Arc::clone(&timeout)), |_| Message::StartSender);
-        let cmd = Command::batch(vec![spawn_win, serve]);
+        let sent = Command::perform(run_sender(timeout.clone(), is_shutdown.clone()), |_| Message::Sender);
+        let cmd = Command::batch(vec![spawn_win, sent]);
         (
             Self {
                 keys: vec![],
-                config_window: (window::Id::MAIN, Window::new(String::from("Configure"))),
+                config_window: (window::Id::MAIN, ConfigWindow::new("Keyway Cofigure")),
                 key_window: (winid, Window::new(String::from("Keystroke"))),
                 timeout,
+                keywin_visible: false,
+                is_shutdown,
             },
             cmd
-            // Command::perform(run_sender(), |_| Message::StartSender),
         )
     }
 
@@ -94,16 +106,24 @@ impl Application for Keyway {
                     self.keys = keystrokes;
                 }
             },
-            Message::KeySent(event) => match event {
-                SenderEvent::StartSender => (),
-                SenderEvent::Sent(_key) => {}
-            },
-            Message::StartSender => {
-                println!("[INFO] Starting Sender");
+            Message::Sender => {
+                println!("[INFO] Sender Terminated");
             }
-            Message::SliderChanged(slider_value) => {
+            Message::TimeoutChanged(slider_value) => {
                 let mut to = self.timeout.lock().unwrap();
                 *to = slider_value;
+            }
+            Message::KeyWinVisibleChanged(visible) => {
+                self.keywin_visible = visible;
+            }
+            Message::ClosedWindow => {
+                println!("ClosedWindow in Update");
+                match self.is_shutdown.lock().as_deref_mut() {
+                    Ok(shut) => *shut = true,
+                    Err(e) => println!("Failed lock is_shutdown {e}"),
+                }
+                println!("Shudown");
+                return window::close(self.key_window.0)
             }
         }
         Command::none()
@@ -112,12 +132,8 @@ impl Application for Keyway {
     fn view(&self, winid: window::Id) -> Element<Self::Message> {
         let content: Element<_> = match winid {
             window::Id::MAIN => {
-                let to = *self.timeout.lock().unwrap();
-                row![
-                    text("Timeout"),
-                    slider(100..=1000, to, Message::SliderChanged),
-                    text(format!("{to} ms")),
-                ].into()
+                let timeout = *self.timeout.lock().unwrap();
+                self.config_window.1.view(timeout, self.keywin_visible)
             },
             _ => {
                 let text_keystrokes: Element<_> = if self.keys.is_empty() {
@@ -146,8 +162,65 @@ impl Application for Keyway {
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         let recv = run_receiver().map(Message::KeyReceived);
-        // let sent = run_sender_ch().map(Message::KeySent);
-        // Subscription::batch(vec![recv, sent])
-        recv
+        let winev = event::listen_with(|event, _| {
+            if let iced::Event::Window(id, window_event) = event {
+                match window_event {
+                    window::Event::Closed => {
+                        println!("Closed {:?}", id);
+                        match id {
+                            window::Id::MAIN => {
+                                Some(Message::ClosedWindow)
+                            }
+                            _ => {
+                                None
+                            }
+                        }
+                    }
+                    window::Event::CloseRequested => {
+                        println!("CloseRequested {:?}", id);
+                        match id {
+                            window::Id::MAIN => {
+                                Some(Message::ClosedWindow)
+                            }
+                            _ => {
+                                None
+                            }
+                        }
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        });
+        Subscription::batch(vec![winev, recv])
+    }
+}
+
+struct ConfigWindow {
+    title: String,
+}
+
+impl ConfigWindow {
+    fn new(title: impl Into<String>) -> Self {
+        Self {
+            title: title.into()
+        }
+    }
+    fn view(&self, timeout: u16, is_visible: bool) -> Element<Message> {
+        let slider_timeout = row![
+            text("Timeout"),
+            slider(100..=2000, timeout, Message::TimeoutChanged).step(50u16),
+            text(format!("{timeout}ms")),
+        ];
+        let keywin_visible = row![
+            text("Keystroke Visible"),
+            toggler("".to_owned(), is_visible, Message::KeyWinVisibleChanged),
+        ];
+        let content = column![
+            slider_timeout,
+            keywin_visible,
+        ].spacing(20);
+        content.into()
     }
 }
