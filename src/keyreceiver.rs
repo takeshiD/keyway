@@ -2,7 +2,7 @@ use iced::futures::SinkExt;
 use iced::subscription::{self, Subscription};
 use tokio::net::UdpSocket;
 
-use crate::keyway::{Keystroke, Keyway};
+use crate::keyway::Keystroke;
 
 #[derive(Debug, Clone)]
 pub enum ReceiverEvent {
@@ -30,19 +30,28 @@ pub fn run_receiver() -> Subscription<ReceiverEvent> {
                         let receiver = UdpSocket::bind("127.0.0.1:53300").await.unwrap();
                         output.send(ReceiverEvent::StartReceiver).await.unwrap();
                         state = ReceiverState::Running(receiver);
+                        if cfg!(debug_assertions) {
+                            println!("[INFO] Starting Receiver")
+                        }
                     }
                     ReceiverState::Running(receiver) => match receiver.recv(&mut buf).await {
-                        Ok(0) => (),
+                        Ok(0) => {
+                            if cfg!(debug_assertions) {
+                                println!("[INFO] Received(0bytes)");
+                            }
+                        },
                         Ok(n) => {
                             let b = std::str::from_utf8(&buf[..n]).unwrap();
-                            println!("Received({n}bytes): {}", b);
                             let keystrokes: Vec<Keystroke> = serde_json::from_str(b).unwrap();
+                            if cfg!(debug_assertions) {
+                                println!("[INFO] Received({}bytes) {:?}", n, &keystrokes);
+                            }
                             output
                                 .send(ReceiverEvent::Received(keystrokes))
                                 .await
                                 .unwrap();
                         }
-                        Err(e) => println!("Error: {e}"),
+                        Err(e) => eprintln!("[ERROR] {e}"),
                     },
                 }
             }

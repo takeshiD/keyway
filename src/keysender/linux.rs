@@ -116,7 +116,6 @@ pub async fn run_sender(
                                         keyboard.update(keycode, xkb::KeyDirection::Down);
                                         let keystroke = Keystroke::new(
                                             keycode.raw(),
-                                            // String::from("Alternate"),
                                             keyboard.get_string(keycode),
                                         );
                                         buf.push(keystroke);
@@ -137,10 +136,12 @@ pub async fn run_sender(
         }
         match udp_sender.send_to(serde_json::to_string(&buf).unwrap().as_bytes(), target) {
             Ok(n) => {
-                println!("Send({}) {:?}", n, &buf);
+                if cfg!(debug_assertions) {
+                    println!("[INFO] Send({:?}, {}bytes) {:?}", target, n, &buf);
+                }
             }
             Err(e) => {
-                println!("SenderError: {e}");
+                println!("[ERROR] {e}");
                 break;
             }
         }
