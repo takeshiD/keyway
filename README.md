@@ -1,4 +1,4 @@
-# 🔑 key way ⌨
+#  󰌌 key way 󰌑
 `keyway` displays keystrokes on your desktop screen. It is designed to work on both Wayland and X11 environments and has the following features:
 
 * Works on both Wayland and X11
@@ -32,3 +32,18 @@ Support Ubuntu20.04 or later.
 ```sh
 $ cargo install keyway
 ```
+
+# Tasklist
+## Appearance
+- [ ] change fontsize
+- [ ] change fontfamily
+- [ ] change textcolor(RGBA)
+- [ ] change background-color(RGBA)
+- [ ] toggle background transparent
+- [ ] select dynamic width or fixed width by keystrokes length
+- [ ] select symbol or svg
+
+## Misc Functions
+- [ ] change interval time of continuous keystrokes
+- [ ] toggle visible mouse click
+- [ ] toggle visible modifier

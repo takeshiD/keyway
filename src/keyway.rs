@@ -1,9 +1,11 @@
 use iced::executor;
+use iced::theme;
+use iced::application;
 use iced::event::{self, Event};
 use iced::multi_window::Application;
 use iced::widget::{
     row, column, container, slider, text, toggler,
-    mouse_area,
+    mouse_area
 };
 use iced::window::{
     self, Level,
@@ -65,6 +67,7 @@ pub struct Keyway {
     timeout: Arc<Mutex<u16>>,
     keywin_visible: bool,
     is_shutdown: Arc<Mutex<bool>>,
+    theme: Theme
 }
 enum KeywayWindows {
     Configure,
@@ -80,15 +83,17 @@ impl Application for Keyway {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         let timeout = Arc::new(Mutex::new(500));
         let is_shutdown = Arc::new(Mutex::new(false));
-        let (keywin_id, keywin_spawn) = window::spawn::<Message>(window::Settings{
-            size: iced::Size::new(300.0, 100.0),
-            visible: true,
-            resizable: true,
-            decorations: false,
-            transparent: true,
-            level: Level::AlwaysOnTop,
-            ..Default::default()
-        });
+        let (keywin_id, keywin_spawn) = window::spawn::<Message>(
+            window::Settings{
+                size: iced::Size::new(300.0, 100.0),
+                visible: true,
+                resizable: true,
+                decorations: false,
+                transparent: true,
+                level: Level::AlwaysOnTop,
+                ..Default::default()
+            }
+        );
         let windows = HashMap::<window::Id, KeywayWindows>::from([
             (window::Id::MAIN, KeywayWindows::Configure),
             (keywin_id, KeywayWindows::Keydisplay)
@@ -99,6 +104,13 @@ impl Application for Keyway {
             |_| Message::Sender
             );
         let cmd = Command::batch(vec![keywin_spawn, sent]);
+        let mytheme = Theme::Custom(Arc::new(theme::Custom::new(String::from("MyTheme"), theme::Palette {
+            background: Color::from_rgba8(0,0,255,0.5),
+            text: Color::from_rgb8(0, 255, 0),
+            primary: Color::from_rgb8(0x5e, 0x7c, 0xe2),
+            success: Color::from_rgb8(0x12, 0x66, 0x4f),
+            danger: Color::from_rgb8(0xc3, 0x42, 0x3f),
+            })));
         (
             Self {
                 keys: vec![],
@@ -108,6 +120,7 @@ impl Application for Keyway {
                 timeout,
                 keywin_visible: false,
                 is_shutdown,
+                theme: mytheme,
             },
             cmd
         )
@@ -213,6 +226,13 @@ impl Application for Keyway {
         );
         Subscription::batch(vec![winev, recv])
     }
+    fn theme(&self, id: window::Id) -> Self::Theme {
+        if id == self.key_window.id {
+            self.theme.clone()
+        } else {
+            Theme::Light
+        }
+    }
 }
 
 struct ConfigWindow {
@@ -266,14 +286,19 @@ impl KeyWindow {
                 .center_y()
                 .into()
         } else {
-            column(
-                keys
-                .iter()
-                .cloned()
-                .map(|k| text(format!("{k}")))
-                .map(Element::from),
+            container(
+                column(
+                    keys
+                    .iter()
+                    .cloned()
+                    .map(|k| text(format!("{k}")))
+                    .map(Element::from),
+                )
+                .height(Length::Fill)
+                .width(Length::Fill)
             )
             .height(Length::Fill)
+            .width(Length::Fill)
             .into()
         };
         mouse_area(text_keystrokes)
