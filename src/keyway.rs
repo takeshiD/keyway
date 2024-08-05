@@ -5,7 +5,7 @@ use iced::event::{self, Event};
 use iced::multi_window::Application;
 use iced::widget::{
     row, column, container, slider, text, toggler,
-    mouse_area, button
+    mouse_area, button, svg, Space
 };
 use iced::window::{
     self, Level,
@@ -56,7 +56,9 @@ pub struct Keyway {
     timeout: Arc<Mutex<u16>>,
     keywin_visible: bool,
     is_shutdown: Arc<Mutex<bool>>,
-    theme: Theme
+    theme: Theme,
+    close_icon: svg::Handle,
+    minimize_icon: svg::Handle,
 }
 enum KeywayWindows {
     Configure,
@@ -90,8 +92,8 @@ impl Application for Keyway {
             );
         let cmd = Command::batch(vec![cfgwin_spawn, sent]);
         let mytheme = Theme::Custom(Arc::new(theme::Custom::new(String::from("MyTheme"), theme::Palette {
-            background: Color::from_rgba8(0,0,255,0.5),
-            text: Color::from_rgb8(0, 255, 0),
+            background: Color::from_rgb8(0x41,0x69,0xe1),
+            text: Color::from_rgb8(0xee, 0xee, 0xee),
             primary: Color::from_rgb8(0x5e, 0x7c, 0xe2),
             success: Color::from_rgb8(0x12, 0x66, 0x4f),
             danger: Color::from_rgb8(0xc3, 0x42, 0x3f),
@@ -106,6 +108,12 @@ impl Application for Keyway {
                 keywin_visible: false,
                 is_shutdown,
                 theme: mytheme,
+                close_icon: svg::Handle::from_memory(
+                    include_bytes!("../asset/x.svg").to_vec()
+                ),
+                minimize_icon: svg::Handle::from_memory(
+                    include_bytes!("../asset/minus.svg").to_vec()
+                )
             },
             cmd
         )
@@ -166,7 +174,12 @@ impl Application for Keyway {
         let content: Element<_> = match winname {
             KeywayWindows::Configure => {
                 let timeout = *self.timeout.lock().unwrap();
-                self.config_window.view(timeout, self.keywin_visible)
+                self.config_window.view(
+                    timeout, 
+                    self.keywin_visible,
+                    self.close_icon.clone(),
+                    self.minimize_icon.clone(),
+                )
             },
             KeywayWindows::Keydisplay => {
                 self.key_window.view(&self.keys)
@@ -225,26 +238,54 @@ impl ConfigWindow {
             id,
         }
     }
-    fn view(&self, timeout: u16, is_visible: bool) -> Element<Message> {
+    fn view(&self,
+        timeout: u16,
+        is_visible: bool,
+        close_icon: svg::Handle,
+        minimize_icon: svg::Handle,
+    ) -> Element<Message> {
         let header = row![
-            button("Min").on_press(Message::Minimize),
-            button("Close").on_press(Message::ClosedWindow),
-        ].align_items(Alignment::End);
+            Space::with_width(Length::Fill),
+            button(
+                svg(minimize_icon)
+                .width(Length::Fixed(12.))
+                .height(Length::Fixed(12.))
+            )
+            .on_press(Message::Minimize),
+            button(
+                svg(close_icon)
+                .width(Length::Fixed(12.))
+                .height(Length::Fixed(12.))
+            )
+            .on_press(Message::ClosedWindow),
+        ]
+            .width(Length::Fill)
+            .height(Length::Shrink)
+            .spacing(10)
+            .padding(10)
+            .align_items(Alignment::End);
+
         let slider_timeout = row![
             text("Timeout"),
             slider(100..=2000, timeout, Message::TimeoutChanged).step(50u16),
             text(format!("{timeout}ms")),
-        ];
+        ]
+            .width(Length::Fill)
+            .height(Length::Shrink)
+            .spacing(10);
         let keywin_visible = row![
             text("Keystroke Visible"),
             toggler("".to_owned(), is_visible, Message::KeyWinVisibleChanged),
-        ];
+        ]
+            .width(Length::Fill)
+            .height(Length::Shrink)
+            .spacing(10);
         let body = column![
             slider_timeout,
             keywin_visible,
         ]
-        .spacing(20)
-        .padding(20);
+            .spacing(10)
+            .padding(10);
         let content = column![
             header,
             body,

@@ -6,7 +6,7 @@ authours = ["tkcd"]
 
 [dependencies]
 clap = { version = "4.5.9", features = ["derive"] }
-iced = { version = "0.12.1", features = ["multi-window", "tokio"] }
+iced = { version = "0.12.1", features = ["multi-window", "svg", "tokio"] }
 serde = { version = "1.0.204", features = ["derive"] }
 serde_json = "1.0.120"
 tokio = { version = "1.37.0", features = ["net", "sync", "time"] }
