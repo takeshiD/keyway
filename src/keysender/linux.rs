@@ -136,9 +136,9 @@ pub async fn run_sender(
         }
         match udp_sender.send_to(serde_json::to_string(&buf).unwrap().as_bytes(), target) {
             Ok(n) => {
-                if cfg!(debug_assertions) {
-                    println!("[INFO] Send({:?}, {}bytes) {:?}", target, n, &buf);
-                }
+                // if cfg!(debug_assertions) {
+                //     println!("[INFO] Send({:?}, {}bytes) {:?}", target, n, &buf);
+                // }
             }
             Err(e) => {
                 println!("[ERROR] {e}");

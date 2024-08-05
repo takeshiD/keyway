@@ -5,15 +5,12 @@ use iced::event::{self, Event};
 use iced::multi_window::Application;
 use iced::widget::{
     row, column, container, slider, text, toggler,
-    mouse_area
+    mouse_area, button
 };
 use iced::window::{
     self, Level,
 };
-use iced::mouse::{
-    self 
-};
-use iced::{Color, Command, Element, Length, Theme, Subscription};
+use iced::{Color, Command, Element, Length, Theme, Subscription, Alignment};
 use serde::{Deserialize, Serialize};
 
 use std::fmt;
@@ -47,7 +44,8 @@ pub enum Message {
     TimeoutChanged(u16),
     KeyWinVisibleChanged(bool),
     ClosedWindow,
-    Drag,
+    Drag(window::Id),
+    Minimize,
 }
 
 pub struct Keyway {
@@ -74,27 +72,23 @@ impl Application for Keyway {
     fn new(_flags: Self::Flags) -> (Self, iced::Command<Self::Message>) {
         let timeout = Arc::new(Mutex::new(500));
         let is_shutdown = Arc::new(Mutex::new(false));
-        let (keywin_id, keywin_spawn) = window::spawn::<Message>(
+        let (cfgwin_id, cfgwin_spawn) = window::spawn::<Message>(
             window::Settings{
-                size: iced::Size::new(300.0, 100.0),
-                visible: true,
-                resizable: false,
+                size: iced::Size::new(500.0, 500.0),
                 decorations: false,
-                transparent: true,
-                level: Level::AlwaysOnTop,
                 ..Default::default()
             }
         );
         let windows = HashMap::<window::Id, KeywayWindows>::from([
-            (window::Id::MAIN, KeywayWindows::Configure),
-            (keywin_id, KeywayWindows::Keydisplay)
+            (window::Id::MAIN, KeywayWindows::Keydisplay),
+            (cfgwin_id, KeywayWindows::Configure)
         ]);
         let sent = Command::perform(
             run_sender(timeout.clone(),
             is_shutdown.clone()), 
             |_| Message::Sender
             );
-        let cmd = Command::batch(vec![keywin_spawn, sent]);
+        let cmd = Command::batch(vec![cfgwin_spawn, sent]);
         let mytheme = Theme::Custom(Arc::new(theme::Custom::new(String::from("MyTheme"), theme::Palette {
             background: Color::from_rgba8(0,0,255,0.5),
             text: Color::from_rgb8(0, 255, 0),
@@ -106,8 +100,8 @@ impl Application for Keyway {
             Self {
                 keys: vec![],
                 windows,
-                config_window: ConfigWindow::new(window::Id::MAIN, "Keyway Cofigure"),
-                key_window: KeyWindow::new(keywin_id, "Keystroke"),
+                config_window: ConfigWindow::new(cfgwin_id, "Keyway Cofigure"),
+                key_window: KeyWindow::new(window::Id::MAIN, "Keystroke"),
                 timeout,
                 keywin_visible: false,
                 is_shutdown,
@@ -152,10 +146,16 @@ impl Application for Keyway {
                     Ok(shut) => *shut = true,
                     Err(e) => println!("Failed lock is_shutdown {e}"),
                 }
-                return window::close(self.key_window.id);
+                return Command::batch(vec![
+                    window::close(self.key_window.id),
+                    window::close(self.config_window.id),
+                ]);
             }
-            Message::Drag => {
-                return window::drag(self.key_window.id)
+            Message::Drag(id) => {
+                return window::drag(id);
+            }
+            Message::Minimize => {
+                return window::change_mode(self.config_window.id, window::Mode::Hidden);
             }
         }
         Command::none()
@@ -179,22 +179,28 @@ impl Application for Keyway {
         let recv = run_receiver().map(Message::KeyReceived);
         let winev = event::listen_with(|e, _| match e {
             Event::Window(id, window_event) => {
-                let winname = self.windows.get(&id).expect("Failed get winname");
                 match window_event {
                     window::Event::Closed => {
-                        match winname {
-                            KeywayWindows::Configure => {
-                                Some(Message::ClosedWindow)
-                            }
-                            KeywayWindows::Keydisplay => {
+                        match id {
+                            window::Id::MAIN => {
+                                println!("Closed MAIN");
                                 None
+                            }
+                            _ => {
+                                println!("Closed Other");
+                                Some(Message::ClosedWindow)
                             }
                         }
                     },
-                    _ => None
+                    _ => {
+                        println!("WindowEvent: {:?}", window_event);
+                        None
+                    }
                 }
             },
-            _ => None
+            _ => {
+                None
+            }
         });
         Subscription::batch(vec![winev, recv])
     }
@@ -220,6 +226,10 @@ impl ConfigWindow {
         }
     }
     fn view(&self, timeout: u16, is_visible: bool) -> Element<Message> {
+        let header = row![
+            button("Min").on_press(Message::Minimize),
+            button("Close").on_press(Message::ClosedWindow),
+        ].align_items(Alignment::End);
         let slider_timeout = row![
             text("Timeout"),
             slider(100..=2000, timeout, Message::TimeoutChanged).step(50u16),
@@ -229,13 +239,19 @@ impl ConfigWindow {
             text("Keystroke Visible"),
             toggler("".to_owned(), is_visible, Message::KeyWinVisibleChanged),
         ];
-        let content = column![
+        let body = column![
             slider_timeout,
             keywin_visible,
         ]
         .spacing(20)
         .padding(20);
-        content.into()
+        let content = column![
+            header,
+            body,
+        ];
+        mouse_area(content)
+            .on_press(Message::Drag(self.id))
+            .into()
     }
 }
 
@@ -252,34 +268,25 @@ impl KeyWindow {
         }
     }
     fn view(&self, keys: &Vec<Keystroke>) -> Element<Message> {
-        let text_keystrokes: Element<_> = if keys.is_empty() {
-            container(text("No Pressed"))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x()
-                .center_y()
-                .into()
-        } else {
-            container(
-                column(
-                    keys
-                    .iter()
-                    .cloned()
-                    .map(|k| text(format!("{}", k.symbol)))
-                    .map(Element::from),
-                )
-                .height(Length::Fill)
-                .width(Length::Fill)
+        let text_keystrokes: Element<_> = container(
+            row(
+                keys
+                .iter()
+                .cloned()
+                .map(|k| text(format!("{}", k.symbol)))
+                .map(Element::from),
             )
             .height(Length::Fill)
             .width(Length::Fill)
-            .into()
-        };
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .into();
         let content = column![
             text_keystrokes
         ].padding(20);
         mouse_area(content)
-            .on_press(Message::Drag)
+            .on_press(Message::Drag(self.id))
             .into()
     }
 }

@@ -43,9 +43,9 @@ pub fn run_receiver() -> Subscription<ReceiverEvent> {
                         Ok(n) => {
                             let b = std::str::from_utf8(&buf[..n]).unwrap();
                             let keystrokes: Vec<Keystroke> = serde_json::from_str(b).unwrap();
-                            if cfg!(debug_assertions) {
-                                println!("[INFO] Received({}bytes) {:?}", n, &keystrokes);
-                            }
+                            // if cfg!(debug_assertions) {
+                            //     println!("[INFO] Received({}bytes) {:?}", n, &keystrokes);
+                            // }
                             output
                                 .send(ReceiverEvent::Received(keystrokes))
                                 .await

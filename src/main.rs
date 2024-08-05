@@ -6,7 +6,7 @@ use keyway::Keyway;
 
 use clap::Parser;
 use iced::Settings;
-use iced::window;
+use iced::window::{self, Level};
 use iced::{Size, Length};
 use iced::multi_window::Application;
 
@@ -21,7 +21,12 @@ struct ArgumentParser {
 fn main() -> iced::Result {
     Keyway::run(Settings {
         window: window::Settings{
-            size: Size::new(500.0, 500.0),
+            size: iced::Size::new(300.0, 100.0),
+            visible: true,
+            resizable: false,
+            decorations: false,
+            transparent: false,
+            level: Level::AlwaysOnTop,
             ..Default::default()
         },
         ..Default::default()
