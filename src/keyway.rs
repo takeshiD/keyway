@@ -79,7 +79,7 @@ impl Application for Keyway {
             window::Settings{
                 size: iced::Size::new(300.0, 100.0),
                 visible: true,
-                resizable: true,
+                resizable: false,
                 decorations: false,
                 transparent: true,
                 level: Level::AlwaysOnTop,
@@ -285,7 +285,7 @@ impl KeyWindow {
                     keys
                     .iter()
                     .cloned()
-                    .map(|k| text(format!("{k}")))
+                    .map(|k| text(format!("{}", k.symbol)))
                     .map(Element::from),
                 )
                 .height(Length::Fill)
@@ -295,7 +295,10 @@ impl KeyWindow {
             .width(Length::Fill)
             .into()
         };
-        mouse_area(text_keystrokes)
+        let content = column![
+            text_keystrokes
+        ].padding(20);
+        mouse_area(content)
             .on_press(Message::Drag)
             .into()
     }

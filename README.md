@@ -33,6 +33,17 @@ Support Ubuntu20.04 or later.
 $ cargo install keyway
 ```
 
+# Device permission
+If you use linux and wayland, we would recommend to create udev rules for keyway.
+If you belong to `your_group` group, put following udev rules file on `/etc/udev/rules.d/`.
+
+```udev: 99-keyway.rules
+KERNEL=="event[0-9]*", SUBSYSTEM=="input", GROUP="your_group", MODE="0660", TAG+="uaccess"
+```
+
+After created it, you need to reboot pc to apply udev-rules.
+If udev load valid 99-keyway.rules, you can execute `keyway` without sudo.
+
 # Tasklist
 ## Appearance
 - [ ] change fontsize
