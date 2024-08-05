@@ -1,4 +1,4 @@
-#  󰌌 key way 󰌑
+#  ⌨ key way
 `keyway` displays keystrokes on your desktop screen. It is designed to work on both Wayland and X11 environments and has the following features:
 
 * Works on both Wayland and X11
@@ -40,6 +40,9 @@ $ cargo install keyway
 - [ ] change textcolor(RGBA)
 - [ ] change background-color(RGBA)
 - [ ] toggle background transparent
+> Note
+> Not working transparent by iced 0.12.1 on Wayland and Windows11, but cofirm to work it iced 0.13(dev).
+> I will implement 'toggle background transparent' after iced 0.13 is stabled.
 - [ ] select dynamic width or fixed width by keystrokes length
 - [ ] select symbol or svg
 

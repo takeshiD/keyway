@@ -23,15 +23,6 @@ use std::collections::HashMap;
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
 use crate::keysender::run_sender;
 
-struct Window {
-    title: String,
-}
-impl Window {
-    fn new(title: String) -> Self {
-        Self { title }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
     keycode: u32,
@@ -186,44 +177,25 @@ impl Application for Keyway {
 
     fn subscription(&self) -> iced::Subscription<Self::Message> {
         let recv = run_receiver().map(Message::KeyReceived);
-        let winev = event::listen_with(|e, _| {
-                match e {
-                    Event::Window(id, window_event) => {
-                            match window_event {
-                                window::Event::Closed => {
-                                    println!("Closed {:?}", id);
-                                    match id {
-                                        window::Id::MAIN => {
-                                            Some(Message::ClosedWindow)
-                                        }
-                                        _ => {
-                                            None
-                                        }
-                                    }
-                                }
-                                window::Event::CloseRequested => {
-                                    println!("CloseRequested {:?}", id);
-                                    match id {
-                                        window::Id::MAIN => {
-                                            Some(Message::ClosedWindow)
-                                        }
-                                        _ => {
-                                            None
-                                        }
-                                    }
-                                }
-                                _ => None,
+        let winev = event::listen_with(|e, _| match e {
+            Event::Window(id, window_event) => {
+                let winname = self.windows.get(&id).expect("Failed get winname");
+                match window_event {
+                    window::Event::Closed => {
+                        match winname {
+                            KeywayWindows::Configure => {
+                                Some(Message::ClosedWindow)
                             }
-                    }
-                    Event::Mouse(mouse_event) => {
-                        match mouse_event {
-                            _ => None,
+                            KeywayWindows::Keydisplay => {
+                                None
+                            }
                         }
-                    }
+                    },
                     _ => None
                 }
-            }
-        );
+            },
+            _ => None
+        });
         Subscription::batch(vec![winev, recv])
     }
     fn theme(&self, id: window::Id) -> Self::Theme {
