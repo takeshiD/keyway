@@ -23,14 +23,6 @@ use std::collections::HashMap;
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
 use crate::keysender::run_sender;
 
-struct Window {
-    title: String,
-}
-impl Window {
-    fn new(title: String) -> Self {
-        Self { title }
-    }
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
@@ -260,7 +252,9 @@ impl ConfigWindow {
         let content = column![
             slider_timeout,
             keywin_visible,
-        ].spacing(20);
+        ]
+        .spacing(20)
+        .padding(20);
         content.into()
     }
 }
