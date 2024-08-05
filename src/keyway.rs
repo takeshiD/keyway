@@ -23,6 +23,10 @@ use std::collections::HashMap;
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
 use crate::keysender::run_sender;
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> develop
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
     keycode: u32,
@@ -78,7 +82,7 @@ impl Application for Keyway {
             window::Settings{
                 size: iced::Size::new(300.0, 100.0),
                 visible: true,
-                resizable: true,
+                resizable: false,
                 decorations: false,
                 transparent: true,
                 level: Level::AlwaysOnTop,
@@ -232,7 +236,9 @@ impl ConfigWindow {
         let content = column![
             slider_timeout,
             keywin_visible,
-        ].spacing(20);
+        ]
+        .spacing(20)
+        .padding(20);
         content.into()
     }
 }
@@ -263,7 +269,7 @@ impl KeyWindow {
                     keys
                     .iter()
                     .cloned()
-                    .map(|k| text(format!("{k}")))
+                    .map(|k| text(format!("{}", k.symbol)))
                     .map(Element::from),
                 )
                 .height(Length::Fill)
@@ -273,7 +279,10 @@ impl KeyWindow {
             .width(Length::Fill)
             .into()
         };
-        mouse_area(text_keystrokes)
+        let content = column![
+            text_keystrokes
+        ].padding(20);
+        mouse_area(content)
             .on_press(Message::Drag)
             .into()
     }
