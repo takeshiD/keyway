@@ -23,10 +23,6 @@ use std::collections::HashMap;
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
 use crate::keysender::run_sender;
 
-<<<<<<< HEAD
-=======
-
->>>>>>> develop
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
     keycode: u32,
