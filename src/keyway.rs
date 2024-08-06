@@ -1,11 +1,12 @@
 use iced::executor;
 use iced::theme;
 use iced::application;
+use iced::font;
 use iced::event::{self, Event};
 use iced::multi_window::Application;
 use iced::widget::{
     row, column, container, slider, text, toggler,
-    mouse_area, button, svg, Space, Row, text_input, pick_list
+    mouse_area, button, svg, Space, Row, text_input, pick_list,
 };
 use iced::window::{
     self, Level,
@@ -46,7 +47,7 @@ pub enum Message {
     ClosedWindow,
     Drag(window::Id),
     Minimize,
-    SelectedFont(String),
+    SelectedFontFamily(String),
     FontsizeChanged(u16),
 }
 
@@ -62,6 +63,7 @@ pub struct Keyway {
     close_icon: svg::Handle,
     minimize_icon: svg::Handle,
     fontsize: u16,
+    fontfamily: String,
 }
 enum KeywayWindows {
     Configure,
@@ -118,6 +120,7 @@ impl Application for Keyway {
                     include_bytes!("../asset/minus.svg").to_vec()
                 ),
                 fontsize: 12,
+                fontfamily: "SansSerif".to_string(),
             },
             cmd
         )
@@ -175,8 +178,8 @@ impl Application for Keyway {
             Message::Minimize => {
                 window::change_mode(self.config_window.id, window::Mode::Hidden)
             }
-            Message::SelectedFont(s) => {
-                println!("SelectedFont {}", s);
+            Message::SelectedFontFamily(fontfamily) => {
+                self.fontfamily = fontfamily;
                 Command::none()
             }
             Message::FontsizeChanged(fontsize) => {
@@ -196,6 +199,7 @@ impl Application for Keyway {
                     timeout, 
                     self.keywin_visible,
                     self.fontsize,
+                    self.fontfamily.clone(),
                     self.close_icon.clone(),
                     self.minimize_icon.clone(),
                 )
@@ -261,6 +265,7 @@ impl ConfigWindow {
         timeout: u16,
         is_visible: bool,
         fontsize: u16,
+        fontfamily: String,
         close_icon: svg::Handle,
         minimize_icon: svg::Handle,
     ) -> Element<Message> {
@@ -300,20 +305,21 @@ impl ConfigWindow {
             .width(Length::Fill)
             .height(Length::Shrink)
             .spacing(10);
+
         let fontfamily_list = pick_list(
-            vec!["Sanserif", "Monospace", "明朝"],
-            Some("Hello"),
-            |s| Message::SelectedFont(s.to_string())
+            vec!["SanSerif".to_string(), "Monospace".to_string(), "明朝".to_string()],
+            Some(fontfamily),
+            |s| Message::SelectedFontFamily(s.to_string())
         );
         let fontsize_slider = row![
             slider(5..=30, fontsize, Message::FontsizeChanged)
                 .step(1u16)
-                .width(Length::Fixed(50.0)),
+                .width(Length::Fixed(100.0)),
             text(format!("{fontsize}")),
         ]
             .width(Length::Shrink)
             .height(Length::Shrink)
-            .spacing(10);
+            .spacing(5);
         let font_selector = row![
             text("Font"),
             fontfamily_list,
@@ -322,7 +328,8 @@ impl ConfigWindow {
             .width(Length::Fill)
             .height(Length::Shrink)
             .spacing(10)
-            .padding(10);
+            .padding(10)
+            .align_items(Alignment::Center);
         let body = column![
             slider_timeout,
             keywin_visible,
