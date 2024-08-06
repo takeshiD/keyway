@@ -5,7 +5,7 @@ use iced::event::{self, Event};
 use iced::multi_window::Application;
 use iced::widget::{
     row, column, container, slider, text, toggler,
-    mouse_area, button, svg, Space
+    mouse_area, button, svg, Space, Row, text_input, pick_list
 };
 use iced::window::{
     self, Level,
@@ -46,6 +46,8 @@ pub enum Message {
     ClosedWindow,
     Drag(window::Id),
     Minimize,
+    SelectedFont(String),
+    FontsizeChanged(u16),
 }
 
 pub struct Keyway {
@@ -59,6 +61,7 @@ pub struct Keyway {
     theme: Theme,
     close_icon: svg::Handle,
     minimize_icon: svg::Handle,
+    fontsize: u16,
 }
 enum KeywayWindows {
     Configure,
@@ -113,7 +116,8 @@ impl Application for Keyway {
                 ),
                 minimize_icon: svg::Handle::from_memory(
                     include_bytes!("../asset/minus.svg").to_vec()
-                )
+                ),
+                fontsize: 12,
             },
             cmd
         )
@@ -134,39 +138,53 @@ impl Application for Keyway {
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match message {
             Message::KeyReceived(event) => match event {
-                ReceiverEvent::StartReceiver => {},
+                ReceiverEvent::StartReceiver => {
+                    Command::none()
+                },
                 ReceiverEvent::Received(keystrokes) => {
                     self.keys = keystrokes;
+                    Command::none()
                 }
             },
             Message::Sender => {
                 println!("[INFO] Terminated");
+                Command::none()
             }
             Message::TimeoutChanged(slider_value) => {
                 let mut to = self.timeout.lock().unwrap();
                 *to = slider_value;
+                Command::none()
             }
             Message::KeyWinVisibleChanged(visible) => {
                 self.keywin_visible = visible;
+                Command::none()
             }
             Message::ClosedWindow => {
                 match self.is_shutdown.lock().as_deref_mut() {
                     Ok(shut) => *shut = true,
                     Err(e) => println!("Failed lock is_shutdown {e}"),
                 }
-                return Command::batch(vec![
+                Command::batch(vec![
                     window::close(self.key_window.id),
                     window::close(self.config_window.id),
-                ]);
+                ])
             }
             Message::Drag(id) => {
-                return window::drag(id);
+                window::drag(id)
             }
             Message::Minimize => {
-                return window::change_mode(self.config_window.id, window::Mode::Hidden);
+                window::change_mode(self.config_window.id, window::Mode::Hidden)
+            }
+            Message::SelectedFont(s) => {
+                println!("SelectedFont {}", s);
+                Command::none()
+            }
+            Message::FontsizeChanged(fontsize) => {
+                self.fontsize = fontsize;
+                Command::none()
             }
         }
-        Command::none()
+        // Command::none()
     }
 
     fn view(&self, winid: window::Id) -> Element<Self::Message> {
@@ -177,6 +195,7 @@ impl Application for Keyway {
                 self.config_window.view(
                     timeout, 
                     self.keywin_visible,
+                    self.fontsize,
                     self.close_icon.clone(),
                     self.minimize_icon.clone(),
                 )
@@ -241,6 +260,7 @@ impl ConfigWindow {
     fn view(&self,
         timeout: u16,
         is_visible: bool,
+        fontsize: u16,
         close_icon: svg::Handle,
         minimize_icon: svg::Handle,
     ) -> Element<Message> {
@@ -251,13 +271,13 @@ impl ConfigWindow {
                 .width(Length::Fixed(12.))
                 .height(Length::Fixed(12.))
             )
-            .on_press(Message::Minimize),
+                .on_press(Message::Minimize),
             button(
                 svg(close_icon)
                 .width(Length::Fixed(12.))
                 .height(Length::Fixed(12.))
             )
-            .on_press(Message::ClosedWindow),
+                .on_press(Message::ClosedWindow),
         ]
             .width(Length::Fill)
             .height(Length::Shrink)
@@ -280,12 +300,37 @@ impl ConfigWindow {
             .width(Length::Fill)
             .height(Length::Shrink)
             .spacing(10);
+        let fontfamily_list = pick_list(
+            vec!["Sanserif", "Monospace", "明朝"],
+            Some("Hello"),
+            |s| Message::SelectedFont(s.to_string())
+        );
+        let fontsize_slider = row![
+            slider(5..=30, fontsize, Message::FontsizeChanged)
+                .step(1u16)
+                .width(Length::Fixed(50.0)),
+            text(format!("{fontsize}")),
+        ]
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .spacing(10);
+        let font_selector = row![
+            text("Font"),
+            fontfamily_list,
+            fontsize_slider,
+        ]
+            .width(Length::Fill)
+            .height(Length::Shrink)
+            .spacing(10)
+            .padding(10);
         let body = column![
             slider_timeout,
             keywin_visible,
+            font_selector,
         ]
             .spacing(10)
             .padding(10);
+
         let content = column![
             header,
             body,
