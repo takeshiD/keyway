@@ -1,7 +1,7 @@
 use iced::executor;
 use iced::theme;
 use iced::application;
-use iced::font;
+use iced::font::{self, Font};
 use iced::event::{self, Event};
 use iced::multi_window::Application;
 use iced::widget::{
@@ -20,6 +20,7 @@ use std::collections::HashMap;
 
 use crate::keyreceiver::{run_receiver, ReceiverEvent};
 use crate::keysender::run_sender;
+use crate::systemfont::get_fontfamily_list;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
@@ -43,7 +44,7 @@ pub enum Message {
     Sender,
     KeyReceived(ReceiverEvent),
     TimeoutChanged(u16),
-    KeyWinVisibleChanged(bool),
+    ToggledMouseVisible(bool),
     ClosedWindow,
     Drag(window::Id),
     Minimize,
@@ -57,7 +58,7 @@ pub struct Keyway {
     config_window: ConfigWindow,
     key_window: KeyWindow,
     timeout: Arc<Mutex<u16>>,
-    keywin_visible: bool,
+    visible_mouse: bool,
     is_shutdown: Arc<Mutex<bool>>,
     theme: Theme,
     close_icon: svg::Handle,
@@ -82,6 +83,8 @@ impl Application for Keyway {
         let (cfgwin_id, cfgwin_spawn) = window::spawn::<Message>(
             window::Settings{
                 size: iced::Size::new(500.0, 500.0),
+                position: iced::window::Position::Centered,
+                resizable: false,
                 decorations: false,
                 ..Default::default()
             }
@@ -110,7 +113,7 @@ impl Application for Keyway {
                 config_window: ConfigWindow::new(cfgwin_id, "Keyway Cofigure"),
                 key_window: KeyWindow::new(window::Id::MAIN, "Keystroke"),
                 timeout,
-                keywin_visible: false,
+                visible_mouse: false,
                 is_shutdown,
                 theme: mytheme,
                 close_icon: svg::Handle::from_memory(
@@ -119,7 +122,7 @@ impl Application for Keyway {
                 minimize_icon: svg::Handle::from_memory(
                     include_bytes!("../asset/minus.svg").to_vec()
                 ),
-                fontsize: 12,
+                fontsize: 16,
                 fontfamily: "SansSerif".to_string(),
             },
             cmd
@@ -158,8 +161,8 @@ impl Application for Keyway {
                 *to = slider_value;
                 Command::none()
             }
-            Message::KeyWinVisibleChanged(visible) => {
-                self.keywin_visible = visible;
+            Message::ToggledMouseVisible(visible) => {
+                self.visible_mouse = visible;
                 Command::none()
             }
             Message::ClosedWindow => {
@@ -197,7 +200,7 @@ impl Application for Keyway {
                 let timeout = *self.timeout.lock().unwrap();
                 self.config_window.view(
                     timeout, 
-                    self.keywin_visible,
+                    self.visible_mouse,
                     self.fontsize,
                     self.fontfamily.clone(),
                     self.close_icon.clone(),
@@ -205,7 +208,11 @@ impl Application for Keyway {
                 )
             },
             KeywayWindows::Keydisplay => {
-                self.key_window.view(&self.keys)
+                self.key_window.view(
+                    &self.keys,
+                    self.fontsize,
+                    self.fontfamily.clone(),
+                )
             }
         };
         content
@@ -252,6 +259,7 @@ impl Application for Keyway {
 struct ConfigWindow {
     title: String,
     id: window::Id,
+    fontfamily_list: Vec<String>,
 }
 
 impl ConfigWindow {
@@ -259,11 +267,12 @@ impl ConfigWindow {
         Self {
             title: title.into(),
             id,
+            fontfamily_list: get_fontfamily_list(),
         }
     }
     fn view(&self,
         timeout: u16,
-        is_visible: bool,
+        visible_mouse: bool,
         fontsize: u16,
         fontfamily: String,
         close_icon: svg::Handle,
@@ -298,18 +307,22 @@ impl ConfigWindow {
             .width(Length::Fill)
             .height(Length::Shrink)
             .spacing(10);
-        let keywin_visible = row![
-            text("Keystroke Visible"),
-            toggler("".to_owned(), is_visible, Message::KeyWinVisibleChanged),
+        let toggle_mouseclick = row![
+            text("Mouse"),
+            toggler("".to_owned(), visible_mouse, Message::ToggledMouseVisible),
         ]
             .width(Length::Fill)
             .height(Length::Shrink)
             .spacing(10);
 
         let fontfamily_list = pick_list(
-            vec!["SanSerif".to_string(), "Monospace".to_string(), "明朝".to_string()],
+            self.fontfamily_list.clone(),
             Some(fontfamily),
             |s| Message::SelectedFontFamily(s.to_string())
+        ).font(Font {
+            family: font::Family::Monospace,
+            ..Font::DEFAULT
+            }
         );
         let fontsize_slider = row![
             slider(5..=30, fontsize, Message::FontsizeChanged)
@@ -332,11 +345,12 @@ impl ConfigWindow {
             .align_items(Alignment::Center);
         let body = column![
             slider_timeout,
-            keywin_visible,
             font_selector,
+            toggle_mouseclick,
         ]
             .spacing(10)
-            .padding(10);
+            .padding(10)
+            .align_items(Alignment::Start);
 
         let content = column![
             header,
@@ -360,13 +374,25 @@ impl KeyWindow {
             id,
         }
     }
-    fn view(&self, keys: &Vec<Keystroke>) -> Element<Message> {
+    fn view(
+        &self, 
+        keys: &Vec<Keystroke>,
+        fontsize: u16,
+        _fontfamily: String,
+    ) -> Element<Message> {
         let text_keystrokes: Element<_> = container(
             row(
                 keys
                 .iter()
                 .cloned()
-                .map(|k| text(format!("{}", k.symbol)))
+                .map(|k| {
+                    text(format!("{}", k.symbol))
+                        .font(Font {
+                            family: font::Family::Monospace,
+                            ..Font::DEFAULT
+                        })
+                        .size(fontsize)
+                })
                 .map(Element::from),
             )
             .height(Length::Fill)

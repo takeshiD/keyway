@@ -1,6 +1,7 @@
 mod keyway;
 mod keysender;
 mod keyreceiver;
+mod systemfont;
 
 use keyway::Keyway;
 
@@ -22,6 +23,7 @@ fn main() -> iced::Result {
     Keyway::run(Settings {
         window: window::Settings{
             size: iced::Size::new(300.0, 100.0),
+            position: iced::window::Position::Specific(iced::Point::new(0.0, 0.0)),
             visible: true,
             resizable: false,
             decorations: false,
