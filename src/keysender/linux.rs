@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::net::SocketAddr;
+use std::borrow::Borrow;
 
 use xkbcommon::xkb;
 
@@ -34,6 +35,22 @@ const KEY_STATE_RELEASE: i32 = 0;
 const KEY_STATE_PREESS: i32 = 1;
 const KEY_STATE_REPEAT: i32 = 2;
 const KEY_OFFSET: u16 = 8;
+
+// enum Keystate {
+//     RELEASE,
+//     PRESS,
+//     REPEAET,
+// }
+// impl Keystate {
+//     fn from_i32(n: i32) -> Option<Keystate> {
+//         match n {
+//             0 => Some(Keystate::RELEASE),
+//             1 => Some(Keystate::PRESS),
+//             2 => Some(Keystate::REPEAET),
+//             _ => None
+//         }
+//     }
+// }
 
 struct Keyboard {
     context: xkb::Context,
@@ -62,8 +79,11 @@ impl Keyboard {
     fn is_repeats(&self, keycode: xkb::Keycode) -> bool {
         self.keymap.key_repeats(keycode)
     }
-    fn update(&mut self, keycode: xkb::Keycode, direction: xkb::KeyDirection) {
-        self.state.update_key(keycode, direction);
+    fn mod_name_is_active<S: Borrow<str> + ?Sized>(&self, name: &S, type_: xkb::StateComponent) -> bool {
+        self.state.mod_name_is_active(name, type_)
+    }
+    fn update(&mut self, keycode: xkb::Keycode, direction: xkb::KeyDirection) -> xkb::StateComponent {
+        self.state.update_key(keycode, direction)
     }
     fn get_string(&self, keycode: xkb::Keycode) -> String {
         self.state.key_get_utf8(keycode)
@@ -108,18 +128,33 @@ pub async fn run_sender(
                                 timestamp = Instant::now();
                                 let keycode: xkb::Keycode = (keycode.0 + KEY_OFFSET).into();
                                 let keystate = e.value();
-                                match keystate {
-                                    KEY_STATE_RELEASE => {
-                                        keyboard.update(keycode, xkb::KeyDirection::Up);
-                                    }
-                                    KEY_STATE_PRESS => {
-                                        keyboard.update(keycode, xkb::KeyDirection::Down);
-                                        let keystroke = Keystroke::new(
-                                            keycode.raw(),
-                                            keyboard.get_string(keycode),
-                                        );
-                                        buf.push(keystroke);
-                                    }
+                                if keystate == KEY_STATE_REPEAT && keyboard.is_repeats(keycode) {
+                                    continue;
+                                }
+                                let changes = if keystate == KEY_STATE_RELEASE {
+                                    keyboard.update(keycode, xkb::KeyDirection::Up)
+                                } else {
+                                    let ret = keyboard.update(keycode, xkb::KeyDirection::Down);
+                                    let keystroke = Keystroke::new(
+                                        keycode.raw(),
+                                        keyboard.get_string(keycode),
+                                    );
+                                    buf.push(keystroke);
+                                    ret
+                                };
+                                if keyboard.mod_name_is_active(xkb::MOD_NAME_CTRL, xkb::STATE_MODS_EFFECTIVE) {
+                                    let keystroke = Keystroke::new(
+                                        keycode.raw(),
+                                        "CTRL".to_string(),
+                                    );
+                                    buf.push(keystroke);
+                                }
+                                if keyboard.mod_name_is_active(xkb::MOD_NAME_SHIFT, xkb::STATE_MODS_EFFECTIVE) {
+                                    let keystroke = Keystroke::new(
+                                        keycode.raw(),
+                                        "SHIFT".to_string(),
+                                    );
+                                    buf.push(keystroke);
                                 }
                             }
                             _ => (),
