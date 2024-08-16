@@ -36,13 +36,6 @@
       "active": false
     },
     "windows": [
-      {
-        "fullscreen": false,
-        "height": 600,
-        "resizable": true,
-        "title": "keyway",
-        "width": 800
-      }
     ]
   }
 }

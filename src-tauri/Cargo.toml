@@ -1,5 +1,5 @@
 [package]
-name = "app"
+name = "keyway"
 version = "0.1.0"
 description = "keystroke display application"
 authors = ["tkcd"]
@@ -16,6 +16,17 @@ tauri-build = { version = "1.5.3", features = [] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 tauri = { version = "1.7.0", features = ["shell-open"] }
+clap = { version = "4.5.9", features = ["derive"] }
+tokio = { version = "1.37.0", features = ["net", "sync", "time"] }
+fontdb = "0.21.0"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+evdev = "0.12.2"
+mio = { version = "1.0.0", features = ["os-ext", "os-poll", "net"] }
+udev = "0.9.0"
+xkbcommon = "0.7.0"
+
+[target.'cfg(target_os = "windows")'.dependencies]
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
