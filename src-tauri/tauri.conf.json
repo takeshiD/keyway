@@ -36,6 +36,20 @@
       "active": false
     },
     "windows": [
+        {
+            "label": "ConfigureWindow",
+            "title": "Keyway Configure",
+            "width": 400,
+            "height": 800,
+            "url": "config.html"
+        },
+        {
+            "label": "KeyWindow",
+            "title": "Keyway Display",
+            "width": 800,
+            "height": 200,
+            "url": "key.html"
+        }
     ]
   }
 }
