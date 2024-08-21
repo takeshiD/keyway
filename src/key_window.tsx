@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './KeyWindow'
-import './index.css'
+import './key_window.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
