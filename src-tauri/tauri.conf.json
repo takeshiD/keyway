@@ -49,9 +49,10 @@
         "label": "ConfigWindow",
         "title": "Keyway Configure",
         "maximizable": false,
+        "resizable": false,
         "closable": false,
-        "width": 400,
-        "height": 500,
+        "width": 600,
+        "height": 700,
         "url": "config_window.html"
       },
       {
@@ -66,6 +67,7 @@
         "closable": false,
         "width": 300,
         "height": 100,
+        "center": true,
         "url": "key_window.html"
       }
     ],

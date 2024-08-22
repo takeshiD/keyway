@@ -123,8 +123,6 @@ const Typography: React.FC = () => {
 }
 
 const WindowAppearance: React.FC = () => {
-  const [fontsize, setFontSize] = useState(12);
-  const [fontfamily, setFontFamily] = useState("SansSerif");
   const [backgroundcolor, setBackgroundColor] = useState("#e0e0e0");
   const [transparenttoggle, setTransparentToggle] = useState(true);
   const [backgroundopacity, setBackgroundOpacity] = useState(0.5);
