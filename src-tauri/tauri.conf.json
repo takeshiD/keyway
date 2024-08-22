@@ -18,7 +18,6 @@
         "show": true,
         "hide": true,
         "close": true,
-        "setDecorations": true,
         "setAlwaysOnTop": true,
         "startDragging": true
       },
@@ -47,10 +46,12 @@
     },
     "windows": [
       {
-        "label": "ConfigureWindow",
+        "label": "ConfigWindow",
         "title": "Keyway Configure",
+        "maximizable": false,
+        "closable": false,
         "width": 400,
-        "height": 800,
+        "height": 500,
         "url": "config_window.html"
       },
       {
@@ -60,8 +61,11 @@
         "alwaysOnTop": true,
         "transparent": true,
         "resizable": false,
-        "width": 800,
-        "height": 200,
+        "minimizable": false,
+        "maximizable": false,
+        "closable": false,
+        "width": 300,
+        "height": 100,
         "url": "key_window.html"
       }
     ],

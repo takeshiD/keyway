@@ -7,9 +7,12 @@ use tauri::{
 
 fn main() {
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
+    let open = CustomMenuItem::new("open".to_string(), "Open");
     let hide = CustomMenuItem::new("hide".to_string(), "Hide");
     let tray_menu = SystemTrayMenu::new()
         .add_item(quit)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(open)
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(hide);
     let system_tray = SystemTray::new().with_menu(tray_menu);
@@ -20,8 +23,15 @@ fn main() {
                 "quit" => {
                     std::process::exit(0);
                 }
+                "open" => {
+                    let window = app.get_window("ConfigWindow").unwrap();
+                    match window.show() {
+                        Ok(()) => (),
+                        Err(e) => eprintln!("{e}"),
+                    }
+                }
                 "hide" => {
-                    let window = app.get_window("ConfigureWindow").unwrap();
+                    let window = app.get_window("ConfigWindow").unwrap();
                     match window.hide() {
                         Ok(()) => (),
                         Err(e) => eprintln!("{e}"),
@@ -29,18 +39,6 @@ fn main() {
                 }
                 _ => {}
             },
-            SystemTrayEvent::LeftClick {
-                tray_id,
-                position,
-                size,
-                ..
-            } => {
-                let window = app.get_window("ConfigureWindow").unwrap();
-                match window.show() {
-                    Ok(()) => (),
-                    Err(e) => eprintln!("{e}"),
-                }
-            }
             _ => {}
         })
         .build(tauri::generate_context!())
