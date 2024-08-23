@@ -2,7 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{
-    CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+    CloseRequestApi, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
+    SystemTrayMenuItem,
 };
 
 fn main() {
