@@ -1,18 +1,16 @@
 use evdev::Device;
-use iced::futures::SinkExt;
-use iced::subscription::{self, Subscription};
 use mio::net::UdpSocket;
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use std::net::SocketAddr;
 use std::borrow::Borrow;
-
 use xkbcommon::xkb;
+use std::sync::{Arc, RwLock, Mutex};
+use tauri::AppHandle;
 
-use crate::keyway::{Keystroke, Keyway};
+use crate::keyway::Keystroke;
 
 fn is_keyboard(dev: &Device) -> bool {
     let has_key = dev.supported_events().contains(evdev::EventType::KEY);
@@ -90,7 +88,7 @@ impl Keyboard {
     }
 }
 
-pub async fn run_sender(
+pub async fn _run_sender(
     timeout: Arc<Mutex<u16>>,
     is_shutdown: Arc<Mutex<bool>>
 ) {
@@ -181,4 +179,19 @@ pub async fn run_sender(
             }
         }
     }
+}
+
+pub fn run_sender(
+    timeout: Arc<RwLock<u32>>,
+    apphandle: AppHandle,
+    label: String,
+    event: String,
+) {
+    let recv = std::thread::spawn(move || {
+        loop {
+            println!("Loop linux");
+            std::thread::sleep(Duration::from_millis(*timeout.read().unwrap() as u64));
+        }
+    });
+    recv.join().expect("Failed join recv");
 }
