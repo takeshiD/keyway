@@ -1,10 +1,8 @@
-// use crate::keyreceiver::{run_receiver, ReceiverEvent};
-use crate::keysender::run_sender;
 // use crate::systemfont::get_fontfamily_list;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+// use std::collections::HashMap;
 use std::fmt;
-use std::sync::{Arc, Mutex};
+// use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {

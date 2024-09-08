@@ -1,14 +1,14 @@
 use evdev::Device;
 use mio::net::UdpSocket;
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
+use std::borrow::Borrow;
+use std::net::SocketAddr;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
-use std::net::SocketAddr;
-use std::borrow::Borrow;
-use xkbcommon::xkb;
-use std::sync::{Arc, RwLock, Mutex};
 use tauri::AppHandle;
+use xkbcommon::xkb;
 
 use crate::keyway::Keystroke;
 
@@ -33,22 +33,6 @@ const KEY_STATE_RELEASE: i32 = 0;
 const KEY_STATE_PREESS: i32 = 1;
 const KEY_STATE_REPEAT: i32 = 2;
 const KEY_OFFSET: u16 = 8;
-
-// enum Keystate {
-//     RELEASE,
-//     PRESS,
-//     REPEAET,
-// }
-// impl Keystate {
-//     fn from_i32(n: i32) -> Option<Keystate> {
-//         match n {
-//             0 => Some(Keystate::RELEASE),
-//             1 => Some(Keystate::PRESS),
-//             2 => Some(Keystate::REPEAET),
-//             _ => None
-//         }
-//     }
-// }
 
 struct Keyboard {
     context: xkb::Context,
@@ -77,10 +61,18 @@ impl Keyboard {
     fn is_repeats(&self, keycode: xkb::Keycode) -> bool {
         self.keymap.key_repeats(keycode)
     }
-    fn mod_name_is_active<S: Borrow<str> + ?Sized>(&self, name: &S, type_: xkb::StateComponent) -> bool {
+    fn mod_name_is_active<S: Borrow<str> + ?Sized>(
+        &self,
+        name: &S,
+        type_: xkb::StateComponent,
+    ) -> bool {
         self.state.mod_name_is_active(name, type_)
     }
-    fn update(&mut self, keycode: xkb::Keycode, direction: xkb::KeyDirection) -> xkb::StateComponent {
+    fn update(
+        &mut self,
+        keycode: xkb::Keycode,
+        direction: xkb::KeyDirection,
+    ) -> xkb::StateComponent {
         self.state.update_key(keycode, direction)
     }
     fn get_string(&self, keycode: xkb::Keycode) -> String {
@@ -88,10 +80,7 @@ impl Keyboard {
     }
 }
 
-pub async fn _run_sender(
-    timeout: Arc<Mutex<u16>>,
-    is_shutdown: Arc<Mutex<bool>>
-) {
+pub async fn _run_sender(timeout: Arc<Mutex<u16>>, is_shutdown: Arc<Mutex<bool>>) {
     let mut devices = get_allkeyabords();
     let mut tokens = vec![];
     let mut keyboards = Vec::<Keyboard>::new();
@@ -114,7 +103,8 @@ pub async fn _run_sender(
     let mut timestamp = Instant::now();
     while !*is_shutdown.lock().unwrap() {
         let timeout = Duration::from_millis(*timeout.lock().unwrap() as u64);
-        poll.poll(&mut events, Some(Duration::from_millis(50))).unwrap();
+        poll.poll(&mut events, Some(Duration::from_millis(50)))
+            .unwrap();
         for event in events.iter() {
             match event.token() {
                 Token(i) if (0..devices.len()).contains(&i) => {
@@ -133,25 +123,25 @@ pub async fn _run_sender(
                                     keyboard.update(keycode, xkb::KeyDirection::Up)
                                 } else {
                                     let ret = keyboard.update(keycode, xkb::KeyDirection::Down);
-                                    let keystroke = Keystroke::new(
-                                        keycode.raw(),
-                                        keyboard.get_string(keycode),
-                                    );
+                                    let keystroke =
+                                        Keystroke::new(keycode.raw(), keyboard.get_string(keycode));
                                     buf.push(keystroke);
                                     ret
                                 };
-                                if keyboard.mod_name_is_active(xkb::MOD_NAME_CTRL, xkb::STATE_MODS_EFFECTIVE) {
-                                    let keystroke = Keystroke::new(
-                                        keycode.raw(),
-                                        "CTRL".to_string(),
-                                    );
+                                if keyboard.mod_name_is_active(
+                                    xkb::MOD_NAME_CTRL,
+                                    xkb::STATE_MODS_EFFECTIVE,
+                                ) {
+                                    let keystroke =
+                                        Keystroke::new(keycode.raw(), "CTRL".to_string());
                                     buf.push(keystroke);
                                 }
-                                if keyboard.mod_name_is_active(xkb::MOD_NAME_SHIFT, xkb::STATE_MODS_EFFECTIVE) {
-                                    let keystroke = Keystroke::new(
-                                        keycode.raw(),
-                                        "SHIFT".to_string(),
-                                    );
+                                if keyboard.mod_name_is_active(
+                                    xkb::MOD_NAME_SHIFT,
+                                    xkb::STATE_MODS_EFFECTIVE,
+                                ) {
+                                    let keystroke =
+                                        Keystroke::new(keycode.raw(), "SHIFT".to_string());
                                     buf.push(keystroke);
                                 }
                             }
@@ -181,16 +171,84 @@ pub async fn _run_sender(
     }
 }
 
-pub fn run_sender(
-    timeout: Arc<RwLock<u32>>,
-    apphandle: AppHandle,
-    label: String,
-    event: String,
-) {
+pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String, event: String) {
     let recv = std::thread::spawn(move || {
+        let mut devices = get_allkeyabords();
+        let mut tokens = vec![];
+        let mut keyboards = Vec::<Keyboard>::new();
+        for (p, _d) in devices.iter() {
+            keyboards.push(Keyboard::new(p));
+        }
+        for i in 0..devices.len() {
+            tokens.push(Token(i));
+        }
+        let mut poll = Poll::new().unwrap();
+        for (i, (_, d)) in devices.iter().enumerate() {
+            poll.registry()
+                .register(&mut SourceFd(&d.as_raw_fd()), tokens[i], Interest::READABLE)
+                .unwrap();
+        }
+        let mut events = Events::with_capacity(32);
+        let mut buf = Vec::<Keystroke>::new();
+        let mut timestamp = Instant::now();
         loop {
-            println!("Loop linux");
-            std::thread::sleep(Duration::from_millis(*timeout.read().unwrap() as u64));
+            let timeout = Duration::from_millis(*timeout.read().unwrap() as u64);
+            poll.poll(&mut events, Some(Duration::from_millis(50))).unwrap();
+            for event in events.iter() {
+                match event.token() {
+                    Token(i) if (0..devices.len()).contains(&i) => {
+                        let (_, ref mut d) = devices.get_mut(i).unwrap();
+                        let keyboard = keyboards.get_mut(i).unwrap();
+                        for e in d.fetch_events().unwrap() {
+                            match e.kind() {
+                                evdev::InputEventKind::Key(keycode) => {
+                                    timestamp = Instant::now();
+                                    let keycode: xkb::Keycode = (keycode.0 + KEY_OFFSET).into();
+                                    let keystate = e.value();
+                                    if keystate == KEY_STATE_REPEAT && keyboard.is_repeats(keycode)
+                                    {
+                                        continue;
+                                    }
+                                    let changes = if keystate == KEY_STATE_RELEASE {
+                                        keyboard.update(keycode, xkb::KeyDirection::Up)
+                                    } else {
+                                        let ret = keyboard.update(keycode, xkb::KeyDirection::Down);
+                                        let keystroke = Keystroke::new(
+                                            keycode.raw(),
+                                            keyboard.get_string(keycode),
+                                        );
+                                        buf.push(keystroke);
+                                        ret
+                                    };
+                                    if keyboard.mod_name_is_active(
+                                        xkb::MOD_NAME_CTRL,
+                                        xkb::STATE_MODS_EFFECTIVE,
+                                    ) {
+                                        let keystroke =
+                                            Keystroke::new(keycode.raw(), "CTRL".to_string());
+                                        buf.push(keystroke);
+                                    }
+                                    if keyboard.mod_name_is_active(
+                                        xkb::MOD_NAME_SHIFT,
+                                        xkb::STATE_MODS_EFFECTIVE,
+                                    ) {
+                                        let keystroke =
+                                            Keystroke::new(keycode.raw(), "SHIFT".to_string());
+                                        buf.push(keystroke);
+                                    }
+                                }
+                                _ => (),
+                            }
+                        }
+                    }
+                    _ => {
+                        unreachable!()
+                    }
+                }
+            }
+            if !buf.is_empty() && (Instant::now() - timestamp > timeout) {
+                buf.clear();
+            }
         }
     });
     recv.join().expect("Failed join recv");

@@ -2,15 +2,15 @@ import { WebviewWindow } from "@tauri-apps/api/window"
 import { useState } from "react"
 import { BehaviorParameter, TypographyParameter, WindowAppearanceParameter } from "../parameter";
 
-// const TitleBar: React.FC = () => {
-//   return (
-//     <div data-tauri-drag-region className="grid grid-cols1">
-//       <div className="bg-gray-50" id="titlebar-close" onClick={() => appWindow.hide()}>
-//         <img src="https://api.iconify.design/mdi:close.svg" alt="close" />
-//       </div>
-//     </div >
-//   )
-// }
+const TitleBar: React.FC = () => {
+  return (
+    <div data-tauri-drag-region className="grid grid-cols1">
+      <div className="bg-gray-50" id="titlebar-close" onClick={() => appWindow.hide()}>
+        <img src="https://api.iconify.design/mdi:close.svg" alt="close" />
+      </div>
+    </div >
+  )
+}
 
 const config_window: WebviewWindow = new WebviewWindow("ConfigWindow");
 
