@@ -28,6 +28,8 @@ tauri = { version = "1.7.0", features = [
 clap = { version = "4.5.9", features = ["derive"] }
 tokio = { version = "1.37.0", features = ["net", "sync", "time"] }
 fontdb = "0.21.0"
+log = "0.4.22"
+env_logger = "0.11.5"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 evdev = "0.12.2"

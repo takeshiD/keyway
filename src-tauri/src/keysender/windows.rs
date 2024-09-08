@@ -1,8 +1,9 @@
 use crate::keyway::Keystroke;
 
+use log::debug;
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 use windows::Win32::Foundation::*;
@@ -33,7 +34,7 @@ extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> 
                         .expect("Failed to lock")
                         .clone();
                     tx.send(*extract_rawkey(&lparam)).expect("Failed send");
-                    println!("Send Keydown {}", *extract_rawkey(&lparam));
+                    debug!("Keydown {}", *extract_rawkey(&lparam));
                 }
                 WM_KEYUP => {
                     let tx = TX
@@ -43,7 +44,7 @@ extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> 
                         .expect("Failed to lock")
                         .clone();
                     tx.send(*extract_rawkey(&lparam)).expect("Falied send");
-                    println!("Send Keyup {}", *extract_rawkey(&lparam));
+                    debug!("Keyup {}", *extract_rawkey(&lparam));
                 }
                 _ => {
                     let tx = TX
@@ -53,7 +54,7 @@ extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> 
                         .expect("Failed to lock")
                         .clone();
                     tx.send(*extract_rawkey(&lparam)).expect("Failed send");
-                    println!("Send Other {}", *extract_rawkey(&lparam));
+                    debug!("Other {}", *extract_rawkey(&lparam));
                 }
             }
         }
@@ -86,23 +87,21 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
     });
     let recv = std::thread::spawn(move || {
         let mut keystrokes = Vec::<Keystroke>::new();
-        keystrokes.push(Keystroke::new(10u32, "TestSymbol".to_string()));
+        let mut timestamp = Instant::now();
         '_keysend_loop: loop {
+            let timeout = Duration::from_millis(*timeout.read().unwrap() as u64);
+
             match RX
                 .get()
                 .expect("Failed get")
                 .lock()
                 .expect("Failed read")
-                .recv_timeout(Duration::from_millis(*timeout.read().unwrap() as u64))
+                .recv()
             {
                 Ok(recv) => {
-                    if cfg!(debug_assertions) {
-                        println!("Keyreceived: {}", recv);
-                    }
+                    debug!("Keyreceived: {}", recv);
+                    timestamp = Instant::now();
                     keystrokes.push(Keystroke::new(recv, "TestKey".to_string()));
-                    apphandle
-                        .emit_to(&label, &event, keystrokes.clone())
-                        .unwrap();
                 }
                 Err(_err) => {
                     if keystrokes.is_empty() {
@@ -110,6 +109,13 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                     }
                 }
             }
+            if !keystrokes.is_empty() && (Instant::now() - timestamp > timeout) {
+                keystrokes.clear();
+            }
+            debug!("Keystrokes: {:?}", keystrokes);
+            apphandle
+                .emit_to(&label, &event, keystrokes.clone())
+                .unwrap();
         }
     });
     recv.join().expect("Failed join recv");

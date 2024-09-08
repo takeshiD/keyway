@@ -2,6 +2,11 @@ import { listen, Event, UnlistenFn } from '@tauri-apps/api/event';
 import { useEffect, useState } from 'react';
 import { TypographyParameter, WindowAppearanceParameter } from '../parameter';
 
+interface Keystroke {
+    keycode: number,
+    symbol: string,
+}
+
 const initBackgroundColor = (): string => {
     return "#ff0000";
 }
@@ -11,11 +16,15 @@ const initBackgroundOpacity = (): number => {
 const initTransparentToggle = (): boolean => {
     return true;
 }
+const initKeystrokes = (): Array<Keystroke> => {
+    return [];
+}
 
 const App: React.FC = () => {
     const [backgroundcolor, setBackgroundColor] = useState(initBackgroundColor);
     const [transparenttoggle, setTransparentToggle] = useState(initTransparentToggle);
     const [backgroundopacity, setBackgroundOpacity] = useState(initBackgroundOpacity);
+    const [keystrokes, setKeystrokes] = useState(initKeystrokes);
     useEffect(() => {
         let unlisten: UnlistenFn;
         async function f() {
@@ -50,7 +59,8 @@ const App: React.FC = () => {
         let unlisten: UnlistenFn;
         async function f() {
             unlisten = await listen('keyevent', (event) => {
-                console.log(event);
+                // setKeystrokes(event.payload.keystrokes)
+                console.log(event.payload);
             });
         }
         f();

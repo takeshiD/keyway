@@ -4,10 +4,14 @@
 mod keysender;
 mod keyway;
 use keysender::run_sender;
+
 use std::sync::{Arc, RwLock};
+use log::debug;
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
 };
+
+
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 struct BehaviorParameter {
     timeout: u32,
@@ -30,6 +34,8 @@ struct WindowAppearanceParameter {
 }
 
 fn main() {
+    env_logger::init();
+    debug!("Starting keyway");
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let open = CustomMenuItem::new("open".to_string(), "Open");
     let hide = CustomMenuItem::new("hide".to_string(), "Hide");
@@ -49,8 +55,8 @@ fn main() {
             {
                 let timeout_ = timeout.clone();
                 config_window.listen("on-change-behavior", move |event| {
-                    println!(
-                        "[EVENT] ConfigWindow onChangeBehavior: {:?}",
+                    debug!(
+                        "ConfigWindow onChangeBehavior: {:?}",
                         event.payload()
                     );
                     let behavior_param =
@@ -58,15 +64,15 @@ fn main() {
                             .unwrap();
                     *timeout_.write().unwrap() = behavior_param.timeout;
                 });
-                println!("[INFO] Setup on-change-behavior");
+                debug!("Setup on-change-behavior");
             }
 
             // ************** Typography *****************
             {
                 let key_window_ = key_window.clone();
                 config_window.listen("on-change-typography", move |event| {
-                    println!(
-                        "[EVENT] ConfigWindow onChangeTypography: {:?}",
+                   debug!(
+                        "ConfigWindow onChangeTypography: {:?}",
                         event.payload()
                     );
                     key_window_
@@ -77,15 +83,15 @@ fn main() {
                         )
                         .unwrap();
                 });
-                println!("[INFO] Setup on-change-typography");
+                debug!("Setup on-change-typography");
             }
 
             // ************** WindowAppearance *****************
             {
                 let key_window_ = key_window.clone();
                 config_window.listen("on-change-windowappearance", move |event| {
-                    println!(
-                        "[EVENT] ConfigWindow onChangeWindowAppearance: {:?}",
+                    debug!(
+                        "ConfigWindow onChangeWindowAppearance: {:?}",
                         event.payload()
                     );
                     key_window_
@@ -98,7 +104,7 @@ fn main() {
                         )
                         .unwrap();
                 });
-                println!("[INFO] Setup on-change-windowappearance");
+                debug!("Setup on-change-windowappearance");
             }
 
             // ************** KeySender *****************
@@ -111,7 +117,7 @@ fn main() {
                     "keyevent".to_string(),
                 );
             });
-            println!("[INFO] Starting keysender");
+            debug!("Starting keysender");
             Ok(())
         })
         .system_tray(system_tray)
