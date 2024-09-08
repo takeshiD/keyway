@@ -87,7 +87,7 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
     let recv = std::thread::spawn(move || {
         let mut keystrokes = Vec::<Keystroke>::new();
         keystrokes.push(Keystroke::new(10u32, "TestSymbol".to_string()));
-        loop {
+        '_keysend_loop: loop {
             match RX
                 .get()
                 .expect("Failed get")

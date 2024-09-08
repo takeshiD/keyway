@@ -1,13 +1,11 @@
 use evdev::Device;
-use mio::net::UdpSocket;
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
 use std::borrow::Borrow;
-use std::net::SocketAddr;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 use xkbcommon::xkb;
 
 use crate::keyway::Keystroke;
@@ -80,97 +78,6 @@ impl Keyboard {
     }
 }
 
-pub async fn _run_sender(timeout: Arc<Mutex<u16>>, is_shutdown: Arc<Mutex<bool>>) {
-    let mut devices = get_allkeyabords();
-    let mut tokens = vec![];
-    let mut keyboards = Vec::<Keyboard>::new();
-    for (p, _d) in devices.iter() {
-        keyboards.push(Keyboard::new(p));
-    }
-    for i in 0..devices.len() {
-        tokens.push(Token(i));
-    }
-    let mut poll = Poll::new().unwrap();
-    for (i, (_, d)) in devices.iter().enumerate() {
-        poll.registry()
-            .register(&mut SourceFd(&d.as_raw_fd()), tokens[i], Interest::READABLE)
-            .unwrap();
-    }
-    let udp_sender = UdpSocket::bind("127.0.0.1:0".parse().unwrap()).unwrap();
-    let target = "127.0.0.1:53300".parse::<SocketAddr>().unwrap();
-    let mut events = Events::with_capacity(32);
-    let mut buf = Vec::<Keystroke>::new();
-    let mut timestamp = Instant::now();
-    while !*is_shutdown.lock().unwrap() {
-        let timeout = Duration::from_millis(*timeout.lock().unwrap() as u64);
-        poll.poll(&mut events, Some(Duration::from_millis(50)))
-            .unwrap();
-        for event in events.iter() {
-            match event.token() {
-                Token(i) if (0..devices.len()).contains(&i) => {
-                    let (_, ref mut d) = devices.get_mut(i).unwrap();
-                    let keyboard = keyboards.get_mut(i).unwrap();
-                    for e in d.fetch_events().unwrap() {
-                        match e.kind() {
-                            evdev::InputEventKind::Key(keycode) => {
-                                timestamp = Instant::now();
-                                let keycode: xkb::Keycode = (keycode.0 + KEY_OFFSET).into();
-                                let keystate = e.value();
-                                if keystate == KEY_STATE_REPEAT && keyboard.is_repeats(keycode) {
-                                    continue;
-                                }
-                                let changes = if keystate == KEY_STATE_RELEASE {
-                                    keyboard.update(keycode, xkb::KeyDirection::Up)
-                                } else {
-                                    let ret = keyboard.update(keycode, xkb::KeyDirection::Down);
-                                    let keystroke =
-                                        Keystroke::new(keycode.raw(), keyboard.get_string(keycode));
-                                    buf.push(keystroke);
-                                    ret
-                                };
-                                if keyboard.mod_name_is_active(
-                                    xkb::MOD_NAME_CTRL,
-                                    xkb::STATE_MODS_EFFECTIVE,
-                                ) {
-                                    let keystroke =
-                                        Keystroke::new(keycode.raw(), "CTRL".to_string());
-                                    buf.push(keystroke);
-                                }
-                                if keyboard.mod_name_is_active(
-                                    xkb::MOD_NAME_SHIFT,
-                                    xkb::STATE_MODS_EFFECTIVE,
-                                ) {
-                                    let keystroke =
-                                        Keystroke::new(keycode.raw(), "SHIFT".to_string());
-                                    buf.push(keystroke);
-                                }
-                            }
-                            _ => (),
-                        }
-                    }
-                }
-                _ => {
-                    unreachable!()
-                }
-            }
-        }
-        if !buf.is_empty() && (Instant::now() - timestamp > timeout) {
-            buf.clear();
-        }
-        match udp_sender.send_to(serde_json::to_string(&buf).unwrap().as_bytes(), target) {
-            Ok(n) => {
-                // if cfg!(debug_assertions) {
-                //     println!("[INFO] Send({:?}, {}bytes) {:?}", target, n, &buf);
-                // }
-            }
-            Err(e) => {
-                println!("[ERROR] {e}");
-                break;
-            }
-        }
-    }
-}
-
 pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String, event: String) {
     let recv = std::thread::spawn(move || {
         let mut devices = get_allkeyabords();
@@ -191,9 +98,10 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
         let mut events = Events::with_capacity(32);
         let mut buf = Vec::<Keystroke>::new();
         let mut timestamp = Instant::now();
-        loop {
+        '_keysend_loop: loop {
             let timeout = Duration::from_millis(*timeout.read().unwrap() as u64);
-            poll.poll(&mut events, Some(Duration::from_millis(50))).unwrap();
+            poll.poll(&mut events, Some(Duration::from_millis(50)))
+                .unwrap();
             for event in events.iter() {
                 match event.token() {
                     Token(i) if (0..devices.len()).contains(&i) => {
@@ -249,6 +157,7 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
             if !buf.is_empty() && (Instant::now() - timestamp > timeout) {
                 buf.clear();
             }
+            apphandle.emit_to(&label, &event, buf.clone()).unwrap();
         }
     });
     recv.join().expect("Failed join recv");
