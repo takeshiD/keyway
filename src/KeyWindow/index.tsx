@@ -21,10 +21,10 @@ const initKeystrokes = (): Array<Keystroke> => {
 }
 
 const App: React.FC = () => {
-    const [backgroundcolor, setBackgroundColor] = useState(initBackgroundColor);
-    const [transparenttoggle, setTransparentToggle] = useState(initTransparentToggle);
-    const [backgroundopacity, setBackgroundOpacity] = useState(initBackgroundOpacity);
-    const [keystrokes, setKeystrokes] = useState(initKeystrokes);
+    const [backgroundcolor, setBackgroundColor] = useState<string>(initBackgroundColor);
+    const [transparenttoggle, setTransparentToggle] = useState<boolean>(initTransparentToggle);
+    const [backgroundopacity, setBackgroundOpacity] = useState<number>(initBackgroundOpacity);
+    const [keystrokes, setKeystrokes] = useState<Array<Keystroke>>(initKeystrokes);
     useEffect(() => {
         let unlisten: UnlistenFn;
         async function f() {
@@ -58,9 +58,8 @@ const App: React.FC = () => {
     useEffect(() => {
         let unlisten: UnlistenFn;
         async function f() {
-            unlisten = await listen('keyevent', (event) => {
-                // setKeystrokes(event.payload.keystrokes)
-                console.log(event.payload);
+            unlisten = await listen('keyevent', (event: Event<Array<Keystroke>>) => {
+                setKeystrokes(event.payload)
             });
         }
         f();
@@ -73,13 +72,27 @@ const App: React.FC = () => {
     return (
         <div
             data-tauri-drag-region
-            className="w-full h-screen flex flex-row"
+            className="w-full p-3 gap-1 grid grid-cols-[repeat(auto-fit, mimax(200px, 1fr))]"
             style={{
                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
                 borderRadius: 10,
             }}
         >
-            <button className="btn btn-primary">KeyWindow</button>
+            {
+                keystrokes.map(ks => {
+                    return (
+                        <div
+                            className="shadow p-1"
+                            style={{
+                                backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
+                                borderRadius: 3,
+                            }}
+                        >
+                            {ks.symbol}
+                        </div>
+                    );
+                })
+            }
         </div>
     )
 }

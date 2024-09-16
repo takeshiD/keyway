@@ -7,6 +7,7 @@ use keysender::run_sender;
 
 use std::sync::{Arc, RwLock};
 use log::debug;
+use std::env;
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
 };
@@ -34,6 +35,7 @@ struct WindowAppearanceParameter {
 }
 
 fn main() {
+    env::set_var("RUST_LOG", "DEBUG");
     env_logger::init();
     debug!("Starting keyway");
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
@@ -50,7 +52,7 @@ fn main() {
         .setup(|app| {
             let config_window = app.get_window("ConfigWindow").unwrap();
             let key_window = app.get_window("KeyWindow").unwrap();
-            let timeout = Arc::new(RwLock::new(50u32));
+            let timeout = Arc::new(RwLock::new(500u32));
             // ************** Behavior *****************
             {
                 let timeout_ = timeout.clone();

@@ -2,16 +2,19 @@
 use serde::{Deserialize, Serialize};
 // use std::collections::HashMap;
 use std::fmt;
-// use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
+    physcode: u32,
     keycode: u32,
     symbol: String,
 }
 impl Keystroke {
-    pub fn new(keycode: u32, symbol: String) -> Self {
-        Keystroke { keycode, symbol }
+    pub fn new(physcode: u32, keycode: u32, symbol: String) -> Self {
+        Keystroke { physcode, keycode, symbol }
+    }
+    pub fn is_mod(&self) -> bool {
+        false
     }
 }
 

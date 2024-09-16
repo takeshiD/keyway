@@ -157,7 +157,9 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
             if !buf.is_empty() && (Instant::now() - timestamp > timeout) {
                 buf.clear();
             }
-            apphandle.emit_to(&label, &event, buf.clone()).unwrap();
+            apphandle
+                .emit_to(&label, &event, buf.clone())
+                .unwrap();
         }
     });
     recv.join().expect("Failed join recv");
