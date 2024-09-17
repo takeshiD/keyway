@@ -7,11 +7,8 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 use windows::Win32::Foundation::*;
+use windows::Win32::UI::Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_LSHIFT, VK_RSHIFT, VK_SHIFT};
 use windows::Win32::UI::WindowsAndMessaging::*;
-use windows::Win32::UI::Input::KeyboardAndMouse::{
-    VK_SHIFT, VK_LSHIFT, VK_RSHIFT,
-    VIRTUAL_KEY,
-};
 
 #[derive(Debug)]
 enum KeyAction {
@@ -26,7 +23,6 @@ struct Key {
     keycode: u32,
     keyaction: KeyAction,
 }
-
 
 static RX: OnceLock<Mutex<Receiver<Key>>> = OnceLock::new();
 static TX: OnceLock<Mutex<Sender<Key>>> = OnceLock::new();
@@ -114,9 +110,9 @@ fn keyboad_hook() {
 }
 
 struct KeyboardState {
-    last_state: [u8; 256],
     last_physcode: u32,
     last_keycode: u32,
+    last_state: [u8; 256],
 }
 
 impl KeyboardState {
@@ -129,31 +125,34 @@ impl KeyboardState {
     }
     fn update(&mut self, keycode: u16, keyaction: KeyAction) {
         match keyaction {
-            KeyAction::KEYDOWN => {
-                match VIRTUAL_KEY(keycode) {
-                    VK_SHIFT => {
-                        self.last_state[VK_SHIFT.0 as usize] |= 0x80;
-                        self.last_state[VK_LSHIFT.0 as usize] |= 0x80;
-                    }
-                    VK_CAPITAL => {
-                        self.last_state[VK_CAPITAL.0 as usize] ^= 0x01;
-                    }
-                    _ => {
-                        self.last_keycode = keycode as u32;
-                    }
+            KeyAction::KEYDOWN => match VIRTUAL_KEY(keycode) {
+                VK_SHIFT => {
+                    self.last_state[VK_SHIFT.0 as usize] |= 0x80;
+                    self.last_state[VK_LSHIFT.0 as usize] |= 0x80;
                 }
-            }
-            KeyAction::KEYUP => {
-                match VIRTUAL_KEY(keycode) {
-                    VK_SHIFT => {
-                        self.last_state[VK_SHIFT.0 as usize] &= !0x80;
-                        self.last_state[VK_LSHIFT.0 as usize] &= !0x80;
-                    }
-                    _ => {}
+                VK_CAPITAL => {
+                    self.last_state[VK_CAPITAL.0 as usize] ^= 0x01;
                 }
-            }
+                _ => {
+                    self.last_keycode = keycode as u32;
+                }
+            },
+            KeyAction::KEYUP => match VIRTUAL_KEY(keycode) {
+                VK_SHIFT => {
+                    self.last_state[VK_SHIFT.0 as usize] &= !0x80;
+                    self.last_state[VK_LSHIFT.0 as usize] &= !0x80;
+                }
+                _ => {}
+            },
             KeyAction::OTHER => {}
         }
+    }
+    fn get_keystroke(&self, keycode: u32) -> Keystroke {
+       Keystroke::new(
+            keycode,
+            keycode,
+            "TEST".to_string(),
+        )
     }
 }
 
@@ -176,19 +175,17 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                 .recv_timeout(Duration::from_millis(50))
             {
                 Ok(recv) => {
-                    debug!("Stroke: {:?}", recv);
                     match recv.keyaction {
                         KeyAction::KEYDOWN | KeyAction::KEYUP => {
                             timestamp = Instant::now();
                             keyboard.update(recv.keycode as u16, recv.keyaction);
-                            let keysym = keyboard.get_keysym(recv.keycode);
-                            keystrokes.push(keysym.to_string());
+                            let keystroke = keyboard.get_keystroke(recv.keycode);
+                            keystrokes.push(keystroke);
                         }
-                        KeyAction::OTHER=> {}
+                        KeyAction::OTHER => {}
                     }
                 }
-                Err(_err) => {
-                }
+                Err(_err) => {}
             }
             let now = Instant::now();
             if !keystrokes.is_empty() && (now - timestamp > timeout) {

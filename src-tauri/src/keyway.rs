@@ -9,6 +9,7 @@ pub struct Keystroke {
     keycode: u32,
     symbol: String,
 }
+
 impl Keystroke {
     pub fn new(physcode: u32, keycode: u32, symbol: String) -> Self {
         Keystroke { physcode, keycode, symbol }
@@ -23,21 +24,8 @@ impl fmt::Display for Keystroke {
         write!(f, "Key[{:#x} '{}']", self.keycode, self.symbol)
     }
 }
-// pub struct Keyway {
-//     keys: Vec<Keystroke>,
-//     windows: HashMap<window::Id, KeywayWindows>,
-//     config_window: ConfigWindow,
-//     key_window: KeyWindow,
-//     timeout: Arc<Mutex<u16>>,
-//     visible_mouse: bool,
-//     is_shutdown: Arc<Mutex<bool>>,
-//     theme: Theme,
-//     close_icon: svg::Handle,
-//     minimize_icon: svg::Handle,
-//     fontsize: u16,
-//     fontfamily: String,
-// }
-// enum KeywayWindows {
-//     Configure,
-//     Keydisplay,
-// }
+
+enum InputEvent {
+    KEYDOWN(u32),
+    KEYUP(u32),
+}
