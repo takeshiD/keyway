@@ -12,6 +12,15 @@ While there are other keystroke display programs like screenkey and showmethekey
 
 `keyway` was created to address the complexity and difficulty of existing keystroke display programs, which are often used by casual users. We believe that such tools should be easy to install and use, without requiring complex dependencies.
 
+## Comparison others
+| Features     | [KeyCastr](https://github.com/keycastr/keycastr) | [Keyviz](https://github.com/mulaRahul/keyviz)    | [showmethekey](https://github.com/AlynxZhou/showmethekey) | Keyway                  |
+|:------------:|:------------------------------------------------:|:------------------------------------------------:|:---------------------------------------------------------:|:-----------------------:|
+| Platform     | MacOS                                            | MacOS, Windows, Linux(X11,Wayland)               | Linux(X11,Wayland)                                        | MacOS, Windows, Linux   |
+| DisplayStyle | WhileInputting / Always                          | WhileInputting                                   | Always                                                    | WhileInputting / Always |
+| Layout       | Horinzontal / Vertical                           | Vertical                                         | Horizontal                                                | Horizontal / Vertical   |
+| Position     | Draggable                                        | Fixed(Right/Left/Top/Bottom and so on in screen) | Draggable                                                 | Fixed / Draggable       |
+| Symbol       | Text / UnicodeSymbol(eg '⌥ ', '⇪' )              | Text / Flat / Elevated / Mechanical              | Text                                                      | ummm...                 |
+
 
 # Installation
 ## Ubuntu
@@ -43,21 +52,3 @@ KERNEL=="event[0-9]*", SUBSYSTEM=="input", GROUP="your_group", MODE="0660", TAG+
 
 After created it, you need to reboot pc to apply udev-rules.
 If udev load valid 99-keyway.rules, you can execute `keyway` without sudo.
-
-# Tasklist
-## Appearance
-- [ ] change fontsize
-- [ ] change fontfamily
-- [ ] change textcolor(RGBA)
-- [ ] change background-color(RGBA)
-- [ ] toggle background transparent
-> Note
-> Not working transparent by iced 0.12.1 on Wayland and Windows11, but cofirm to work it iced 0.13(dev).
-> I will implement 'toggle background transparent' after iced 0.13 is stabled.
-- [ ] select dynamic width or fixed width by keystrokes length
-- [ ] select symbol or svg
-
-## Misc Functions
-- [ ] change interval time of continuous keystrokes
-- [ ] toggle visible mouse click
-- [ ] toggle visible modifier
