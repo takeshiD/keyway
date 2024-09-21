@@ -1,4 +1,5 @@
 use evdev::Device;
+use log::debug;
 use mio::{unix::SourceFd, Events, Interest, Poll, Token};
 use std::borrow::Borrow;
 use std::os::unix::io::AsRawFd;
@@ -96,7 +97,7 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                 .unwrap();
         }
         let mut events = Events::with_capacity(32);
-        let mut buf = Vec::<Keystroke>::new();
+        let mut keystrokes = Vec::<Keystroke>::new();
         let mut timestamp = Instant::now();
         '_keysend_loop: loop {
             let timeout = Duration::from_millis(*timeout.read().unwrap() as u64);
@@ -111,6 +112,7 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                             match e.kind() {
                                 evdev::InputEventKind::Key(keycode) => {
                                     timestamp = Instant::now();
+                                    let physcode = keycode.0 as u32;
                                     let keycode: xkb::Keycode = (keycode.0 + KEY_OFFSET).into();
                                     let keystate = e.value();
                                     if keystate == KEY_STATE_REPEAT && keyboard.is_repeats(keycode)
@@ -122,27 +124,35 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                                     } else {
                                         let ret = keyboard.update(keycode, xkb::KeyDirection::Down);
                                         let keystroke = Keystroke::new(
+                                            physcode,
                                             keycode.raw(),
                                             keyboard.get_string(keycode),
                                         );
-                                        buf.push(keystroke);
+                                        keystrokes.push(keystroke);
                                         ret
                                     };
+
                                     if keyboard.mod_name_is_active(
                                         xkb::MOD_NAME_CTRL,
                                         xkb::STATE_MODS_EFFECTIVE,
                                     ) {
-                                        let keystroke =
-                                            Keystroke::new(keycode.raw(), "CTRL".to_string());
-                                        buf.push(keystroke);
+                                        let keystroke = Keystroke::new(
+                                            physcode,
+                                            keycode.raw(),
+                                            keyboard.get_string(keycode),
+                                        );
+                                        keystrokes.push(keystroke);
                                     }
                                     if keyboard.mod_name_is_active(
                                         xkb::MOD_NAME_SHIFT,
                                         xkb::STATE_MODS_EFFECTIVE,
                                     ) {
-                                        let keystroke =
-                                            Keystroke::new(keycode.raw(), "SHIFT".to_string());
-                                        buf.push(keystroke);
+                                        let keystroke = Keystroke::new(
+                                            physcode,
+                                            keycode.raw(),
+                                            keyboard.get_string(keycode),
+                                        );
+                                        keystrokes.push(keystroke);
                                     }
                                 }
                                 _ => (),
@@ -154,11 +164,14 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                     }
                 }
             }
-            if !buf.is_empty() && (Instant::now() - timestamp > timeout) {
-                buf.clear();
+            if !keystrokes.is_empty() && (Instant::now() - timestamp > timeout) {
+                keystrokes.clear();
+            }
+            if !keystrokes.is_empty() {
+                debug!("Keystrokes: {:?}", keystrokes);
             }
             apphandle
-                .emit_to(&label, &event, buf.clone())
+                .emit_to(&label, &event, keystrokes.clone())
                 .unwrap();
         }
     });
