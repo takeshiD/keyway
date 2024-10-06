@@ -4,7 +4,7 @@ use std::fmt;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Keystroke {
     virtkey: u32,
-    symbol: String,
+    symbol: String, 
 }
 
 impl Keystroke {

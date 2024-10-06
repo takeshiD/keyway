@@ -72,20 +72,19 @@ const App: React.FC = () => {
     return (
         <div
             data-tauri-drag-region
-            className="w-full p-3 gap-1 grid grid-flow-col auto-cols-max]"
+            className="w-fit p-1 gap-1 grid grid-flow-col"
             style={{
                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
-                borderRadius: 10,
+                borderRadius: 5,
             }}
         >
             {
                 keystrokes.map(ks => {
                     return (
                         <div
-                            className="shadow p-1"
+                            className="p-1"
                             style={{
                                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
-                                borderRadius: 3,
                             }}
                         >
                             {ks.symbol}
