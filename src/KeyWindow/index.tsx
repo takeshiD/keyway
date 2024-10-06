@@ -72,7 +72,7 @@ const App: React.FC = () => {
     return (
         <div
             data-tauri-drag-region
-            className="w-full p-3 gap-1 grid grid-cols-[repeat(auto-fit, mimax(200px, 1fr))]"
+            className="w-full p-3 gap-1 grid grid-flow-col auto-cols-max]"
             style={{
                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
                 borderRadius: 10,

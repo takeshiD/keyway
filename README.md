@@ -13,6 +13,7 @@ While there are other keystroke display programs like screenkey and showmethekey
 `keyway` was created to address the complexity and difficulty of existing keystroke display programs, which are often used by casual users. We believe that such tools should be easy to install and use, without requiring complex dependencies.
 
 ## Comparison others
+
 | Features     | [KeyCastr](https://github.com/keycastr/keycastr) | [Keyviz](https://github.com/mulaRahul/keyviz)    | [showmethekey](https://github.com/AlynxZhou/showmethekey) | Keyway                  |
 |:------------:|:------------------------------------------------:|:------------------------------------------------:|:---------------------------------------------------------:|:-----------------------:|
 | Platform     | MacOS                                            | MacOS, Windows, Linux(X11,Wayland)               | Linux(X11,Wayland)                                        | MacOS, Windows, Linux   |

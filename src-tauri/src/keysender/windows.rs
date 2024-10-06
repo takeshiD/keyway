@@ -1,13 +1,14 @@
 use crate::keyway::Keystroke;
 
-use log::debug;
+use log::{debug, warn};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::{Duration, Instant};
+use std::collections::HashMap;
 use tauri::{AppHandle, Manager};
 
 use windows::Win32::Foundation::*;
-use windows::Win32::UI::Input::KeyboardAndMouse::{VIRTUAL_KEY, VK_LSHIFT, VK_RSHIFT, VK_SHIFT};
+use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
 
 #[derive(Debug)]
@@ -20,7 +21,7 @@ enum KeyAction {
 #[derive(Debug)]
 struct Key {
     scancode: u32,
-    keycode: u32,
+    virtkey: u32,
     keyaction: KeyAction,
 }
 
@@ -42,7 +43,7 @@ unsafe fn extract_rawkey(lparam: &LPARAM, keyaction: KeyAction) -> Key {
     let _exinfo = (*kbdhook).dwExtraInfo;
     let key = Key {
         scancode,
-        keycode: vkcode,
+        virtkey: vkcode,
         keyaction,
     };
     key
@@ -60,7 +61,6 @@ extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> 
                         .expect("Failed to lock")
                         .clone();
                     let key = extract_rawkey(&lparam, KeyAction::KEYDOWN);
-                    // debug!("Keydown {:?}", key);
                     tx.send(key).expect("Failed send");
                 }
                 WM_KEYUP | WM_SYSKEYUP => {
@@ -71,7 +71,6 @@ extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> 
                         .expect("Failed to lock")
                         .clone();
                     let key = extract_rawkey(&lparam, KeyAction::KEYUP);
-                    // debug!("Keyup {:?}", key);
                     tx.send(key).expect("Failed send");
                 }
                 _ => {
@@ -82,7 +81,7 @@ extern "system" fn keyboard_proc(ncode: i32, wparam: WPARAM, lparam: LPARAM) -> 
                         .expect("Failed to lock")
                         .clone();
                     let key = extract_rawkey(&lparam, KeyAction::OTHER);
-                    // warn!("Other {:?}", key);
+                    warn!("Other {:?}", key);
                     tx.send(key).expect("Failed send");
                 }
             }
@@ -109,50 +108,71 @@ fn keyboad_hook() {
     }
 }
 
+
 struct KeyboardState {
-    last_physcode: u32,
-    last_keycode: u32,
+    last_scancode: u32,
+    last_virtkey: u32,
     last_state: [u8; 256],
 }
 
 impl KeyboardState {
     fn new() -> Self {
         KeyboardState {
-            last_physcode: 0,
-            last_keycode: 0,
+            last_scancode: 0,
+            last_virtkey: 0,
             last_state: [0u8; 256],
         }
     }
-    fn update(&mut self, keycode: u16, keyaction: KeyAction) {
+    fn update(&mut self, virtkey: u16, keyaction: KeyAction) {
         match keyaction {
-            KeyAction::KEYDOWN => match VIRTUAL_KEY(keycode) {
+            KeyAction::KEYDOWN => match VIRTUAL_KEY(virtkey) {
                 VK_SHIFT => {
-                    self.last_state[VK_SHIFT.0 as usize] |= 0x80;
+                    self.last_state[VK_SHIFT.0 as usize]  |= 0x80;
                     self.last_state[VK_LSHIFT.0 as usize] |= 0x80;
+                    self.last_state[VK_RSHIFT.0 as usize] |= 0x80;
+                }
+                VK_CONTROL => {
+                    self.last_state[VK_CONTROL.0 as usize]  |= 0x80;
+                    self.last_state[VK_LCONTROL.0 as usize] |= 0x80;
+                    self.last_state[VK_RCONTROL.0 as usize] |= 0x80;
                 }
                 VK_CAPITAL => {
                     self.last_state[VK_CAPITAL.0 as usize] ^= 0x01;
                 }
                 _ => {
-                    self.last_keycode = keycode as u32;
+                    self.last_virtkey = virtkey as u32;
                 }
             },
-            KeyAction::KEYUP => match VIRTUAL_KEY(keycode) {
+            KeyAction::KEYUP => match VIRTUAL_KEY(virtkey) {
                 VK_SHIFT => {
-                    self.last_state[VK_SHIFT.0 as usize] &= !0x80;
+                    self.last_state[VK_SHIFT.0 as usize]  &= !0x80;
                     self.last_state[VK_LSHIFT.0 as usize] &= !0x80;
+                }
+                VK_CONTROL => {
+                    self.last_state[VK_CONTROL.0 as usize]  &= !0x80;
+                    self.last_state[VK_LCONTROL.0 as usize] &= !0x80;
+                    self.last_state[VK_RCONTROL.0 as usize] &= !0x80;
                 }
                 _ => {}
             },
             KeyAction::OTHER => {}
         }
     }
-    fn get_keystroke(&self, keycode: u32) -> Keystroke {
-       Keystroke::new(
-            keycode,
-            keycode,
-            "TEST".to_string(),
-        )
+    fn pressed_shift(&self) -> bool {
+        self.last_state[VK_SHIFT.0 as usize] & 0x80 != 0
+    }
+    fn pressed_ctrl(&self) -> bool {
+        self.last_state[VK_CONTROL.0 as usize] & 0x80 != 0
+    }
+    fn latched_capital(&self) -> bool {
+        self.last_state[VK_CAPITAL.0 as usize] & 0x01 != 0
+    }
+    fn get_one_sym(&self, _virtkey: u32) -> String {
+        "TEST".to_string()
+    }
+    fn get_keystroke(&self, virtkey: u32) -> Keystroke {
+        let keysym = self.get_one_sym(virtkey);
+        Keystroke::new(virtkey, keysym)
     }
 }
 
@@ -174,29 +194,32 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                 .expect("Failed read")
                 .recv_timeout(Duration::from_millis(50))
             {
-                Ok(recv) => {
-                    match recv.keyaction {
-                        KeyAction::KEYDOWN | KeyAction::KEYUP => {
-                            timestamp = Instant::now();
-                            keyboard.update(recv.keycode as u16, recv.keyaction);
-                            let keystroke = keyboard.get_keystroke(recv.keycode);
-                            keystrokes.push(keystroke);
-                        }
-                        KeyAction::OTHER => {}
+                Ok(recv) => match recv.keyaction {
+                    KeyAction::KEYDOWN => {
+                        timestamp = Instant::now();
+                        keyboard.update(recv.virtkey as u16, recv.keyaction);
+                        let keystroke = keyboard.get_keystroke(recv.virtkey);
+                        keystrokes.push(keystroke);
                     }
-                }
+                    KeyAction::KEYUP => {
+                        keyboard.update(recv.virtkey as u16, recv.keyaction);
+                    }
+                    KeyAction::OTHER => {}
+                },
                 Err(_err) => {}
             }
             let now = Instant::now();
             if !keystrokes.is_empty() && (now - timestamp > timeout) {
                 keystrokes.clear();
+                debug!("Key Cleared");
             }
             if !keystrokes.is_empty() {
-                debug!("Keystrokes: {:?}", keystrokes);
+                debug!("Keystrokes: {:#?}", keystrokes);
             }
             apphandle
                 .emit_to(&label, &event, keystrokes.clone())
                 .unwrap();
+            // keystrokes.clear();
         }
     });
     recv.join().expect("Failed join recv");
