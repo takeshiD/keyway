@@ -6,3 +6,10 @@ html,
 body {
     background-color: transparent !important;
 }
+
+.grabbar{
+    cursor: grab;
+}
+.grabbar:active {
+    cursor: grabbing;
+}

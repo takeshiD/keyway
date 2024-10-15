@@ -20,7 +20,8 @@
                 "close": true,
                 "setAlwaysOnTop": true,
                 "startDragging": true,
-                "setSize": true
+                "setSize": true,
+                "setCursorGrab": true
             },
             "shell": {
                 "all": false,
@@ -63,13 +64,13 @@
                 "decorations": false,
                 "alwaysOnTop": true,
                 "transparent": true,
-                "resizable": true,
+                "resizable": false,
                 "minimizable": false,
                 "maximizable": false,
                 "closable": false,
                 "minWidth": null,
                 "maxWidth": null,
-                "width": 200,
+                "width": 150,
                 "height": 100,
                 "center": true
             }

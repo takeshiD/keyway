@@ -86,8 +86,8 @@ const App: React.FC = () => {
         async function f() {
             unlisten = await listen('keyevent', (event: Event<Array<Array<string>>>) => {
                 setKeystrokes(event.payload);
-                const length = event.payload.length; 
-                key_window.setSize(new PhysicalSize(200 + length*32, 100));
+                const length = event.payload.length;
+                key_window.setSize(new PhysicalSize(150 + length * 32, 100));
             });
         }
         f();
@@ -98,44 +98,52 @@ const App: React.FC = () => {
         }
     }, []);
     return (
-        <div
-            data-tauri-drag-region
-            className="w-fit min-w-20 min-h-8 flex justify-start"
+        <div 
+            className="flex flex-col justify-center p-1 gap-1"
             style={{
                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
                 borderRadius: 5,
             }}
         >
-            {
-                keystrokes.map(keysyms => {
-                    return (
-                        <div
-                            className="flex justify-start p-0.5"
-                            style={{
-                                backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
-                            }}
-                        >
-                            {
-                                keysyms.map(keysym => {
-                                    return (
-                                        <div
-                                            className="w-fit min-w-8 p-0.5 flex justify-center"
-                                            style={{
-                                                backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
-                                                color: `${textcolor}`,
-                                                fontSize: `${fontsize}px`,
-                                                fontFamily: `${fontfamily}`,
-                                            }}
-                                        >
-                                            {keysym}
-                                        </div>
-                                    );
-                                })
-                            }
-                        </div>
-                    );
-                })
-            }
+            <div
+                data-tauri-drag-region
+                className="grabbar w-20 h-1 bg-gray-400 opacity-50 rounded-full transition duration-300 hover:opacity-100"
+            >
+            </div>
+            <div
+                className="w-fit min-w-20 min-h-8 flex justify-start"
+            >
+                {
+                    keystrokes.map(keysyms => {
+                        return (
+                            <div
+                                className="flex justify-start p-0.5"
+                                style={{
+                                    backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
+                                }}
+                            >
+                                {
+                                    keysyms.map(keysym => {
+                                        return (
+                                            <div
+                                                className="w-fit min-w-8 p-0.5 flex justify-center"
+                                                style={{
+                                                    backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
+                                                    color: `${textcolor}`,
+                                                    fontSize: `${fontsize}px`,
+                                                    fontFamily: `${fontfamily}`,
+                                                }}
+                                            >
+                                                {keysym}
+                                            </div>
+                                        );
+                                    })
+                                }
+                            </div>
+                        );
+                    })
+                }
+            </div>
         </div>
     )
 }
