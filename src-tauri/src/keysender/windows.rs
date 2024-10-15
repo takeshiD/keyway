@@ -116,7 +116,14 @@ fn initialize_keymap() -> [Option<&'static str>; 256] {
     keymap[VK_TAB.0 as usize] = Some("Tab");
     keymap[VK_RETURN.0 as usize] = Some("Enter");
     keymap[VK_SHIFT.0 as usize] = Some("Shift");
+    keymap[VK_LSHIFT.0 as usize] = Some("Shift");
+    keymap[VK_RSHIFT.0 as usize] = Some("Shift");
     keymap[VK_CONTROL.0 as usize] = Some("Ctrl");
+    keymap[VK_LCONTROL.0 as usize] = Some("Ctrl");
+    keymap[VK_RCONTROL.0 as usize] = Some("Ctrl");
+    keymap[VK_MENU.0 as usize] = Some("Alt");
+    keymap[VK_LMENU.0 as usize] = Some("Alt");
+    keymap[VK_RMENU.0 as usize] = Some("Alt");
     keymap[VK_ESCAPE.0 as usize] = Some("Esc");
     keymap[VK_SPACE.0 as usize] = Some("Space");
     keymap[VK_PRIOR.0 as usize] = Some("PageUp");
@@ -231,10 +238,16 @@ impl KeyboardState {
                     self.last_state[VK_LCONTROL.0 as usize] |= 0x80;
                     self.last_state[VK_RCONTROL.0 as usize] |= 0x80;
                 }
+                VK_MENU => {
+                    self.last_state[VK_MENU.0 as usize] |= 0x80;
+                    self.last_state[VK_LMENU.0 as usize] |= 0x80;
+                    self.last_state[VK_RMENU.0 as usize] |= 0x80;
+                }
                 VK_CAPITAL => {
                     self.last_state[VK_CAPITAL.0 as usize] ^= 0x01;
                 }
                 _ => {
+                    self.last_state[virtkey as usize] |= 0x80;
                     self.last_virtkey = virtkey as u32;
                 }
             },
@@ -248,22 +261,31 @@ impl KeyboardState {
                     self.last_state[VK_LCONTROL.0 as usize] &= !0x80;
                     self.last_state[VK_RCONTROL.0 as usize] &= !0x80;
                 }
-                _ => {}
+                VK_MENU => {
+                    self.last_state[VK_MENU.0 as usize] &= !0x80;
+                    self.last_state[VK_LMENU.0 as usize] &= !0x80;
+                    self.last_state[VK_RMENU.0 as usize] &= !0x80;
+                }
+                _ => {
+                    self.last_state[virtkey as usize] &= !0x80;
+                }
             },
             KeyAction::OTHER => {}
         }
     }
-    fn pressed_shift(&self) -> bool {
-        self.last_state[VK_SHIFT.0 as usize] & 0x80 != 0
-    }
-    fn pressed_ctrl(&self) -> bool {
-        self.last_state[VK_CONTROL.0 as usize] & 0x80 != 0
-    }
-    fn latched_capital(&self) -> bool {
-        self.last_state[VK_CAPITAL.0 as usize] & 0x01 != 0
-    }
-    fn get_one_sym(&self, _virtkey: u32) -> Option<&str> {
-        self.keymap[_virtkey as usize]
+    fn get_syms(&self) -> Vec<&'static str> {
+        let mut syms = Vec::new();
+        for (i, state ) in self.last_state.iter().enumerate() {
+            if *state & 0x80 != 0 {
+                match self.keymap[i] {
+                    Some(sym) => {
+                        syms.push(sym);
+                    }
+                    None => {}
+                }
+            }
+        }
+        syms
     }
 }
 
@@ -273,7 +295,7 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
         keyboad_hook();
     });
     let recv = std::thread::spawn(move || {
-        let mut keystrokes = Vec::<Keystroke>::new();
+        let mut keystrokes = Vec::<Vec<&str>>::new();
         let mut timestamp = Instant::now();
         let mut keyboard = KeyboardState::new();
         '_keysend_loop: loop {
@@ -289,16 +311,10 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
                     KeyAction::KEYDOWN => {
                         timestamp = Instant::now();
                         keyboard.update(recv.virtkey as u16, recv.keyaction);
-                        let keysym = keyboard.get_one_sym(recv.virtkey);
-                        match keysym {
-                            Some(symbol) => {
-                                let keystroke = Keystroke::new(recv.virtkey, symbol.to_string());
-                                keystrokes.push(keystroke);
-                            }
-                            None => {
-                                let keystroke = Keystroke::new(recv.virtkey, "UNDEFINED".to_string());
-                                keystrokes.push(keystroke);
-                            }
+                        let keysyms = keyboard.get_syms();
+                        debug!("{:?}", keysyms);
+                        if !keysyms.is_empty() {
+                            keystrokes.push(keysyms);
                         }
                     }
                     KeyAction::KEYUP => {
@@ -324,4 +340,17 @@ pub fn run_sender(timeout: Arc<RwLock<u32>>, apphandle: AppHandle, label: String
     });
     recv.join().expect("Failed join recv");
     hook.join().expect("Failed join hook");
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_keyboardstate() {
+        let keyboard = KeyboardState::new();
+        for i in 0..255 {
+            println!("")
+        }
+    }
 }

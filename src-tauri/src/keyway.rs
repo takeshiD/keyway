@@ -14,9 +14,6 @@ impl Keystroke {
             symbol,
         }
     }
-    pub fn is_mod(&self) -> bool {
-        unimplemented!()
-    }
 }
 
 impl fmt::Display for Keystroke {

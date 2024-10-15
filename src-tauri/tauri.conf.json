@@ -1,79 +1,82 @@
 {
-  "build": {
-    "beforeBuildCommand": "yarn build",
-    "beforeDevCommand": "yarn dev",
-    "devPath": "http://localhost:1420",
-    "distDir": "../dist"
-  },
-  "package": {
-    "productName": "keyway",
-    "version": "0.1.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "window": {
-        "all": false,
-        "create": true,
-        "show": true,
-        "hide": true,
-        "close": true,
-        "setAlwaysOnTop": true,
-        "startDragging": true
-      },
-      "shell": {
-        "all": false,
-        "open": true
-      }
+    "build": {
+        "beforeBuildCommand": "yarn build",
+        "beforeDevCommand": "yarn dev",
+        "devPath": "http://localhost:1420",
+        "distDir": "../dist"
     },
-    "bundle": {
-      "active": true,
-      "identifier": "keyway.app",
-      "targets": "all",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
+    "package": {
+        "productName": "keyway",
+        "version": "0.1.0"
     },
-    "security": {
-      "csp": null
-    },
-    "updater": {
-      "active": false
-    },
-    "windows": [
-      {
-        "label": "ConfigWindow",
-        "title": "Keyway Configure",
-        "maximizable": false,
-        "resizable": false,
-        "closable": false,
-        "width": 600,
-        "height": 700,
-        "url": "config_window.html"
-      },
-      {
-        "label": "KeyWindow",
-        "title": "Keyway Display",
-        "decorations": false,
-        "alwaysOnTop": true,
-        "transparent": true,
-        "resizable": false,
-        "minimizable": false,
-        "maximizable": false,
-        "closable": false,
-        "width": 300,
-        "height": 100,
-        "center": true,
-        "url": "key_window.html"
-      }
-    ],
-    "systemTray": {
-      "iconPath": "icons/32x32.png",
-      "iconAsTemplate": true
+    "tauri": {
+        "allowlist": {
+            "all": false,
+            "window": {
+                "all": false,
+                "create": true,
+                "show": true,
+                "hide": true,
+                "close": true,
+                "setAlwaysOnTop": true,
+                "startDragging": true,
+                "setSize": true
+            },
+            "shell": {
+                "all": false,
+                "open": true
+            }
+        },
+        "bundle": {
+            "active": true,
+            "identifier": "keyway.app",
+            "targets": "all",
+            "icon": [
+                "icons/32x32.png",
+                "icons/128x128.png",
+                "icons/128x128@2x.png",
+                "icons/icon.icns",
+                "icons/icon.ico"
+            ]
+        },
+        "security": {
+            "csp": null
+        },
+        "updater": {
+            "active": false
+        },
+        "windows": [
+            {
+                "label": "ConfigWindow",
+                "title": "Keyway Configure",
+                "url": "config_window.html",
+                "maximizable": false,
+                "resizable": false,
+                "closable": false,
+                "width": 600,
+                "height": 700
+            },
+            {
+                "label": "KeyWindow",
+                "title": "Keyway Display",
+                "url": "key_window.html",
+                "decorations": false,
+                "alwaysOnTop": true,
+                "transparent": true,
+                "resizable": true,
+                "minimizable": false,
+                "maximizable": false,
+                "closable": false,
+                "minWidth": null,
+                "maxWidth": null,
+                "width": 200,
+                "height": 100,
+                "center": true
+            }
+        ],
+        "systemTray": {
+            "iconPath": "icons/32x32.png",
+            "iconAsTemplate": true
+        }
     }
-  }
 }

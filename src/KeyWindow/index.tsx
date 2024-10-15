@@ -1,12 +1,23 @@
 import { listen, Event, UnlistenFn } from '@tauri-apps/api/event';
+import { WebviewWindow, PhysicalSize } from '@tauri-apps/api/window';
 import { useEffect, useState } from 'react';
 import { TypographyParameter, WindowAppearanceParameter } from '../parameter';
 
-interface Keystroke {
-    keycode: number,
-    symbol: string,
+// interface Keystroke {
+//     symbols: Array<string>,
+// }
+const key_window: WebviewWindow = new WebviewWindow("KeyWindow");
+// TypographyParameter
+const initFontSize = (): number => {
+    return 12;
 }
-
+const initFontFamily = (): string => {
+    return "SansSerif";
+}
+const initTextColor = (): string => {
+    return "#eeeeee";
+}
+// WindowAppearanceParameter
 const initBackgroundColor = (): string => {
     return "#ff0000";
 }
@@ -16,20 +27,34 @@ const initBackgroundOpacity = (): number => {
 const initTransparentToggle = (): boolean => {
     return true;
 }
-const initKeystrokes = (): Array<Keystroke> => {
+// Keystrokes
+const initKeystrokes = (): Array<Array<string>> => {
     return [];
 }
 
 const App: React.FC = () => {
+    // TypographyParameter: useState
+    const [fontsize, setFontSize] = useState<number>(initFontSize);
+    const [fontfamily, setFontFamily] = useState<string>(initFontFamily);
+    const [textcolor, setTextColor] = useState<string>(initTextColor);
+
+    // WindowAppearanceParameter: useState
     const [backgroundcolor, setBackgroundColor] = useState<string>(initBackgroundColor);
     const [transparenttoggle, setTransparentToggle] = useState<boolean>(initTransparentToggle);
     const [backgroundopacity, setBackgroundOpacity] = useState<number>(initBackgroundOpacity);
-    const [keystrokes, setKeystrokes] = useState<Array<Keystroke>>(initKeystrokes);
+
+    // Keystrokes
+    const [keystrokes, setKeystrokes] = useState<Array<Array<string>>>(initKeystrokes);
+
+    // TypegraphyParameter: useEffect
     useEffect(() => {
         let unlisten: UnlistenFn;
         async function f() {
             unlisten = await listen('on-change-typography', (event: Event<TypographyParameter>) => {
                 console.log(event.payload);
+                setFontSize(event.payload.fontsize);
+                setFontFamily(event.payload.fontfamily);
+                setTextColor(event.payload.textcolor);
             });
         }
         f();
@@ -39,6 +64,7 @@ const App: React.FC = () => {
             }
         }
     }, []);
+    // WindowAppearanceParameter: useEffect
     useEffect(() => {
         let unlisten: UnlistenFn;
         async function f() {
@@ -58,8 +84,10 @@ const App: React.FC = () => {
     useEffect(() => {
         let unlisten: UnlistenFn;
         async function f() {
-            unlisten = await listen('keyevent', (event: Event<Array<Keystroke>>) => {
-                setKeystrokes(event.payload)
+            unlisten = await listen('keyevent', (event: Event<Array<Array<string>>>) => {
+                setKeystrokes(event.payload);
+                const length = event.payload.length; 
+                key_window.setSize(new PhysicalSize(200 + length*32, 100));
             });
         }
         f();
@@ -72,22 +100,38 @@ const App: React.FC = () => {
     return (
         <div
             data-tauri-drag-region
-            className="w-fit p-1 gap-1 grid grid-flow-col"
+            className="w-fit min-w-20 min-h-8 flex justify-start"
             style={{
                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
                 borderRadius: 5,
             }}
         >
             {
-                keystrokes.map(ks => {
+                keystrokes.map(keysyms => {
                     return (
                         <div
-                            className="p-1"
+                            className="flex justify-start p-0.5"
                             style={{
                                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
                             }}
                         >
-                            {ks.symbol}
+                            {
+                                keysyms.map(keysym => {
+                                    return (
+                                        <div
+                                            className="w-fit min-w-8 p-0.5 flex justify-center"
+                                            style={{
+                                                backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
+                                                color: `${textcolor}`,
+                                                fontSize: `${fontsize}px`,
+                                                fontFamily: `${fontfamily}`,
+                                            }}
+                                        >
+                                            {keysym}
+                                        </div>
+                                    );
+                                })
+                            }
                         </div>
                     );
                 })

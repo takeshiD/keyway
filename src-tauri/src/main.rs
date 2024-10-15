@@ -52,6 +52,10 @@ fn main() {
         .setup(|app| {
             let config_window = app.get_window("ConfigWindow").unwrap();
             let key_window = app.get_window("KeyWindow").unwrap();
+            debug!("InnerPosition:{:?}", key_window.inner_position());
+            debug!("OuterPosition:{:?}", key_window.outer_position());
+            debug!("InnerSize:{:?}", key_window.inner_size());
+            debug!("OuterSize:{:?}", key_window.outer_size());
             let timeout = Arc::new(RwLock::new(500u32));
             // ************** Behavior *****************
             {
