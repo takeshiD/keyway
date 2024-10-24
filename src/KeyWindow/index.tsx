@@ -98,7 +98,7 @@ const App: React.FC = () => {
         }
     }, []);
     return (
-        <div 
+        <div
             className="flex flex-col justify-center p-1 gap-1"
             style={{
                 backgroundColor: `color-mix(in srgb, ${backgroundcolor} ${transparenttoggle ? backgroundopacity : 100}%, transparent)`,
